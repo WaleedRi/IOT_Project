@@ -220,13 +220,20 @@ void startTestHandler() {
 
       // Initialize NeoPixel
       strip.begin();
-        for (int i = 0; i < 16*NUMPIXELS; i++) {
+      
+      for (int i = 0; i < 16*NUMPIXELS; i++) {
+        strip.setPixelColor(i,  0x000000);
+      }
+
+      strip.show();
+      
+      for (int i = 0; i < 16*NUMPIXELS; i++) {
           strip.setPixelColor(i, colors[i/16]); // Light up NeoPixel
         //  digitalWrite(leds_pins[randomized_buttons[i]], HIGH);
       //   strip.show();
     // Turn on corresponding LED
       }
-      strip.show();
+      //strip.show();
       
 
       // Initialize buttons and LEDs
@@ -243,15 +250,18 @@ void startTestHandler() {
       int sequence[NUMPIXELS];
       generateSequence(sequence, NUMPIXELS);
       playSequence(sequence, NUMPIXELS);
-          tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
       tft.drawCentreString("start play!", centerX, centerY, FONT_SIZE);
 
 
-          int userSequence[NUMPIXELS];
+      int userSequence[NUMPIXELS];
       int currentStep = 0;
       bool gameFailed = false;
 
+      delay(1100);
+      strip.show();
+      
       while (currentStep < NUMPIXELS && !gameFailed) {
           for (int i = 0; i < NUMPIXELS; i++) {
               if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
@@ -263,7 +273,7 @@ void startTestHandler() {
                       break;
                   }
                   currentStep++;
-                  delay(500); // Debounce delay
+                  delay(250); // Debounce delay
                 //  digitalWrite(leds_pins[randomized_buttons[i]], LOW); // Turn off LED
                 for (int j = 0; j < 16; j++) {
                     //  strip.setPixelColor(i, colors[i/16]);
@@ -271,7 +281,7 @@ void startTestHandler() {
                   
                 }
                   strip.show();
-                  delay(1000);
+                  delay(500);
                   for (int j = 0; j < 16; j++) {
                       strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
                   }

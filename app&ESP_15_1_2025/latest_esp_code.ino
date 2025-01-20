@@ -9,6 +9,7 @@
 #include <SPI.h>
 #include <TFT_eSPI.h>
 #include <XPT2046_Touchscreen.h>
+#include <Preferences.h>
 
 // Touchscreen pins
 #define XPT2046_IRQ 25   // T_IRQ
@@ -104,6 +105,21 @@ String idToken = ""; // Bearer token for authenticated requests
 //AsyncWebServer server(80);
 
 WebServer server(80);
+Preferences preferences;
+
+
+struct LocalData{
+  String patientId;
+  String testName;
+  String data;
+};
+
+struct DefaultWiFi{
+  String ssid;
+  String password;
+};
+
+
 
 
 // MP3 player communication pins and commands
@@ -119,6 +135,99 @@ static int8_t reset_CMD[] = { 0x7e, 0x03, 0X35, 0x05, 0xef };
 Adafruit_NeoPixel strip = Adafruit_NeoPixel(NUMPIXELS*16, PIN_NEO_PIXEL, NEO_GRB + NEO_KHZ800);
 
 // Helper Functions
+
+void ConnectToWIFI(){
+  WiFi.begin(ssid.c_str(), password.c_str());
+  int attempts=0;
+  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
+      delay(500);
+      Serial.print(".");
+      attempts ++ ;
+  }
+}
+
+void saveDataLocally(const LocalData& data) {
+    preferences.begin("offline-data", false); // Open preferences in RW mode
+    preferences.putBytes("data", &data,sizeof(data));
+    preferences.end(); // Close preferences
+}
+
+
+bool loadDefaultWiFi() {
+    preferences.begin("offline-data", true); // Open preferences in read-only mode
+    DefaultWiFi recoveredData;
+    size_t size = preferences.getBytes("wifi", &recoveredData, sizeof(recoveredData));
+    preferences.end();
+    Serial.print("Retrieved preferences");
+    if (size != sizeof(recoveredData)) {
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.setTextSize(2);
+      tft.drawCentreString("No defualt Wifi exist", centerX, centerY, FONT_SIZE); 
+        // Handle case where no valid data was retrieved
+      memset(&recoveredData, 0, sizeof(recoveredData));
+    }else{
+      ssid = recoveredData.ssid;
+      password = recoveredData.password;
+      Serial.print("Retrieved Wifi data");
+      ConnectToWIFI();
+      delay(1000);
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.setTextSize(2);
+      Serial.print("Connected to Wifi");
+      if (WiFi.status() == WL_CONNECTED) {
+        tft.fillScreen(TFT_WHITE);
+        tft.setTextColor(TFT_BLACK, TFT_WHITE);
+        tft.setTextSize(2);
+        tft.drawCentreString("Recovering Data...", centerX, centerY, FONT_SIZE); 
+        loadStruct();
+        delay(1000);
+        tft.fillScreen(TFT_WHITE);
+        tft.setTextColor(TFT_BLACK, TFT_WHITE);
+        tft.setTextSize(2);
+        tft.drawCentreString("Connected to " + ssid, centerX, centerY, FONT_SIZE); 
+        return true;
+      }
+    }
+    return false;
+}
+
+
+void loadStruct() {
+    preferences.begin("offline-data", true); // Open preferences in read-only mode
+    LocalData recoveredData;
+    size_t size = preferences.getBytes("data", &recoveredData, sizeof(recoveredData));
+    preferences.end();
+
+    if (size != sizeof(recoveredData)) {
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.setTextSize(2);
+      tft.drawCentreString("No Data To Recover", centerX, centerY, FONT_SIZE); 
+        // Handle case where no valid data was retrieved
+      memset(&recoveredData, 0, sizeof(recoveredData));
+    }else{
+      patientId = recoveredData.patientId;
+      testName = recoveredData.testName;
+      SaveToFireStore(recoveredData.data);
+      clearStruct();
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.setTextSize(2);
+      tft.drawCentreString("Data Recovered", centerX, centerY, FONT_SIZE); 
+    }
+
+  //  return recoveredData;
+}
+
+void clearStruct() {
+    preferences.begin("offline-data", false);
+    preferences.remove("data");
+    preferences.end();
+}
+
+
 
 // Generate a random question
 MathQuestion generateQuestion() {
@@ -192,7 +301,7 @@ bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
   bool result;
   bool Istouched=false;
   while (!(touchscreen.tirqTouched() && touchscreen.touched())){
-    Serial.print("Waiting for answer...")
+    Serial.print("Waiting for answer...");
   }
   while (!Istouched) {
     TS_Point p = touchscreen.getPoint();
@@ -466,202 +575,196 @@ void addTestField(String patientId, String testName, String newTestName, String 
 
   http.end();
 }
-void startVisualTestHandler(){
-   Serial.println("Start Test Request Received");
-    // Call the existing setup() to restart the test sequence
-        // Start the SPI for the touchscreen and init the touchscreen
 
-  int counter=0;
-  int result[3] ;
-  int NumberOfWins=0;
-  while(counter!=3){
-    // Clear the screen before writing to it
+
+
+
+void SaveDefaultWiFILocally(const DefaultWiFi& data) {
+    preferences.begin("offline-data", false); // Open preferences in RW mode
+    preferences.putBytes("wifi", &data,sizeof(data));
+    preferences.end(); // Close preferences
+}
+
+void SaveToLocalStorage(const LocalData& data){
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.drawCentreString("WiFI Disconnected!", centerX, centerY, FONT_SIZE);
+    saveDataLocally(data);
+    delay(5000);
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.drawCentreString("Saved Results locally", centerX, centerY, FONT_SIZE);
+    delay(5000);
     tft.fillScreen(TFT_WHITE);
     tft.setTextColor(TFT_BLACK, TFT_WHITE);
     tft.setTextSize(2);
     while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
-      tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
-      tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
- 
+      tft.drawCentreString("Touch To Reset", centerX, centerY+10, FONT_SIZE);
     }
+    setup();
+}
+
+void SaveToFireStore(String data){
+      Serial.println("\nConnected to Wi-Fi!");
+      Serial.print("IP Address: ");
+      Serial.println(WiFi.localIP());
+    // String data = "success tries " + String(NumberOfWins) + " from 3"; 
+
+    // Authenticate and get ID Token
+      idToken = getIdToken();
+      if (idToken == "") {
+        Serial.println("Authentication failed");
+        return;
+       }
+      int lastTestNumber = getLastTestNumber(patientId, testName);
+      int newTestNumber = lastTestNumber + 1;
+      String newTestName = "test" + String(newTestNumber);
+      // Add the new test field
+      addTestField(patientId, testName, newTestName, data,newTestNumber);
       tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    delay(1000);
-    tft.drawCentreString("Watch carefully!", centerX, centerY, FONT_SIZE);
-      // Initialize MP3 player
-   /*   MP3.begin(9600, SERIAL_8N1, 17, 16);
-      if (resetMP3()) {
-          Serial.println("MP3 reset successful");
-      } else {
-          Serial.println("MP3 reset failed");
-      }
-      selectSDCard();
-      setVolume(25);
-*/
-      // Initialize NeoPixel
-      randomizeButtons();
-      strip.begin();
-      for (int i = 0; i < 5; i++) {
-        setAllPixelsColor(colors[randomized_buttons[i]]);
-        strip.show();
-        delay(2000);
-        setAllPixelsColor(0x000000);
-        strip.show();
-        delay(1000);
-      }
-       // Turn all NeoPixels green
-
-        for (int i = 0; i < 16*NUMPIXELS; i++) {
-          strip.setPixelColor(i, colors[i/16]); // Light up NeoPixel
-        //  digitalWrite(leds_pins[randomized_buttons[i]], HIGH);
-      //   strip.show();
-    // Turn on corresponding LED
-      }
-      strip.show();
+        tft.setTextColor(TFT_BLACK, TFT_WHITE);
+        tft.setTextSize(2);
+      tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
+      delay(5000);
+      tft.fillScreen(TFT_WHITE);
+        tft.setTextColor(TFT_BLACK, TFT_WHITE);
+        tft.setTextSize(2);
+        tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
       
+}
 
-      // Initialize buttons and LEDs
+int PlayTheGameAndCalcResults(){
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  tft.drawCentreString("start play!", centerX, centerY, FONT_SIZE);
+  
+  int userSequence[NUMPIXELS];
+  int currentStep = 0;
+  bool gameFailed = false;
+
+  while (currentStep < NUMPIXELS && !gameFailed) {
       for (int i = 0; i < NUMPIXELS; i++) {
-          pinMode(buttons_pins[i], INPUT_PULLUP);
-      //   pinMode(leds_pins[i], OUTPUT);
-      //   digitalWrite(leds_pins[i], LOW);
-      }
-
-      // Randomize button-to-sequence mapping
-    //  randomizeButtons();
-
-      // Generate and play the initial sequence
-   //   int sequence[NUMPIXELS];
-   //   generateSequence(sequence, NUMPIXELS);
-   //   playSequence(sequence, NUMPIXELS);
-          tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-      tft.drawCentreString("start play!", centerX, centerY, FONT_SIZE);
-
-
-      int userSequence[NUMPIXELS];
-      int currentStep = 0;
-      bool gameFailed = false;
-
-      while (currentStep < NUMPIXELS && !gameFailed) {
-          for (int i = 0; i < NUMPIXELS; i++) {
-              if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
-                  userSequence[currentStep] = i;
-                //  digitalWrite(leds_pins[randomized_buttons[i]], HIGH); // Turn on corresponding LED
-
-                  if (userSequence[currentStep] != currentStep) {
-                      gameFailed = true;
-                      break;
-                  }
-                  currentStep++;
-                  delay(250); // Debounce delay
-                //  digitalWrite(leds_pins[randomized_buttons[i]], LOW); // Turn off LED
-                for (int j = 0; j < 16; j++) {
-                    //  strip.setPixelColor(i, colors[i/16]);
-                      strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
-                  
-                }
-                  strip.show();
-                  delay(500);
-                  for (int j = 0; j < 16; j++) {
-                      strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
-                  }
-                  strip.show();
-                      
+          if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
+              userSequence[currentStep] = i;
+              if (userSequence[currentStep] != currentStep) {
+                  gameFailed = true;
+                  break;
               }
+              currentStep++;
+              delay(250); // Debounce delay
+              for (int j = 0; j < 16; j++) {
+                strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
+              }
+              strip.show();
+              delay(500);
+              for (int j = 0; j < 16; j++) {
+                  strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
+              }
+              strip.show();     
           }
       }
-      result[counter]=currentStep;
-
-    //    int centerX = SCREEN_WIDTH / 2;
-    //int centerY = SCREEN_HEIGHT / 2;
-
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    tft.setTextSize(3);
-      if (gameFailed) {
-          Serial.println("Game Over!");
-          setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
-          tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
-      } else {
-          Serial.println("You Win!");
-          setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
-          tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
-          NumberOfWins=NumberOfWins+1;
-      }
-
-      delay(3000);
-      setAllPixelsColor(0x000000);
-
-
-      counter=counter+1;
-
   }
- // WiFi.softAPdisconnect(true);
   tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-     tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
-     WiFi.begin(ssid.c_str(), password.c_str());
-      while (WiFi.status() != WL_CONNECTED) {
-      delay(1000);
-      Serial.print(".");
+  tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  tft.setTextSize(3);
+  if (gameFailed) {
+      Serial.println("Game Over!");
+      setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
+      tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
+  } else {
+      Serial.println("You Win!");
+      setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
+      tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
   }
-  Serial.println("\nConnected to Wi-Fi");
- // String data = "success tries " + String(NumberOfWins) + " from 3"; 
-    String data = String(result[0])+ "+" +String(result[1])+ "+" + String(result[2]); 
-
-// Authenticate and get ID Token
-  idToken = getIdToken();
-  if (idToken == "") {
-    Serial.println("Authentication failed");
-    return;
-  }
-
- 
-
-  // Get the last test number
-  int lastTestNumber = getLastTestNumber(patientId, testName);
-  int newTestNumber = lastTestNumber + 1;
-  String newTestName = "test" + String(newTestNumber);
-
-  // Add the new test field
-  addTestField(patientId, testName, newTestName, data,newTestNumber);
-  tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-    tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
-    delay(5000);
-    tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-     tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
+  delay(3000);
+  setAllPixelsColor(0x000000);
+  return currentStep;
 }
 
 
-void startTestHandler() {
-    Serial.println("Start Test Request Received");
-    // Call the existing setup() to restart the test sequence
-        // Start the SPI for the touchscreen and init the touchscreen
-
+void startVisualTestHandler(){
+  Serial.println("Start Test Request Received");
   int counter=0;
-  int result[3] ;
-  int NumberOfWins=0;
+  int results[3] ;
   while(counter!=3){
     // Clear the screen before writing to it
     tft.fillScreen(TFT_WHITE);
     tft.setTextColor(TFT_BLACK, TFT_WHITE);
     tft.setTextSize(2);
+    // Start the SPI for the touchscreen and init the touchscreen
     while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
       tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
       tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
- 
     }
-      tft.fillScreen(TFT_WHITE);
+    tft.fillScreen(TFT_WHITE);
     tft.setTextColor(TFT_BLACK, TFT_WHITE);
     delay(1000);
-    tft.drawCentreString("listen carefully!", centerX, centerY, FONT_SIZE);
-      // Initialize MP3 player
+    tft.drawCentreString("Watch carefully!", centerX, centerY, FONT_SIZE);
+    // Initialize NeoPixel
+    randomizeButtons();
+    strip.begin();
+    for (int i = 0; i < 5; i++) {
+      setAllPixelsColor(colors[randomized_buttons[i]]);
+      strip.show();
+      delay(2000);
+      setAllPixelsColor(0x000000);
+      strip.show();
+      delay(1000);
+    }
+    // Turn all NeoPixels green
+    for (int i = 0; i < 16*NUMPIXELS; i++) {
+      strip.setPixelColor(i, colors[i/16]); // Light up NeoPixel
+      // Turn on corresponding LED
+    }
+    strip.show();
+      
+    // Initialize buttons and LEDs
+    for (int i = 0; i < NUMPIXELS; i++) {
+        pinMode(buttons_pins[i], INPUT_PULLUP);
+    }
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.drawCentreString("start play!", centerX, centerY, FONT_SIZE);
+    int correctclicks = 0;
+    correctclicks =PlayTheGameAndCalcResults();
+    results[counter]=correctclicks;
+    counter=counter+1;
+  }
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  tft.setTextSize(2);
+  tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
+  ConnectToWIFI();
+  String data = String(results[0])+ "+" +String(results[1])+ "+" + String(results[2]); 
+  if (WiFi.status() == WL_CONNECTED) {
+    SaveToFireStore(data);
+  }
+  else{
+    LocalData localdata = {patientId,testName,data};
+    SaveToLocalStorage(localdata);
+  }
+}
+
+void startTestHandler() {
+    Serial.println("Start Test Request Received");
+    int counter=0;
+    int results[3] ;
+    while(counter!=3){
+      // Clear the screen before writing to it
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      tft.setTextSize(2);
+      while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
+        tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
+        tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
+      }
+      tft.fillScreen(TFT_WHITE);
+      tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      delay(1000);
+      tft.drawCentreString("listen carefully!", centerX, centerY, FONT_SIZE);
+        // Initialize MP3 player
       MP3.begin(9600, SERIAL_8N1, 17, 16);
       if (resetMP3()) {
           Serial.println("MP3 reset successful");
@@ -670,23 +773,15 @@ void startTestHandler() {
       }
       selectSDCard();
       setVolume(50);
-
       // Initialize NeoPixel
       strip.begin();
         for (int i = 0; i < 16*NUMPIXELS; i++) {
           strip.setPixelColor(i, colors[i/16]); // Light up NeoPixel
-        //  digitalWrite(leds_pins[randomized_buttons[i]], HIGH);
-      //   strip.show();
-    // Turn on corresponding LED
       }
       strip.show();
-      
-
       // Initialize buttons and LEDs
       for (int i = 0; i < NUMPIXELS; i++) {
           pinMode(buttons_pins[i], INPUT_PULLUP);
-      //   pinMode(leds_pins[i], OUTPUT);
-      //   digitalWrite(leds_pins[i], LOW);
       }
 
       // Randomize button-to-sequence mapping
@@ -696,106 +791,26 @@ void startTestHandler() {
       int sequence[NUMPIXELS];
       generateSequence(sequence, NUMPIXELS);
       playSequence(sequence, NUMPIXELS);
-          tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-      tft.drawCentreString("start play!", centerX, centerY, FONT_SIZE);
 
-
-          int userSequence[NUMPIXELS];
-      int currentStep = 0;
-      bool gameFailed = false;
-
-      while (currentStep < NUMPIXELS && !gameFailed) {
-          for (int i = 0; i < NUMPIXELS; i++) {
-              if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
-                  userSequence[currentStep] = i;
-                //  digitalWrite(leds_pins[randomized_buttons[i]], HIGH); // Turn on corresponding LED
-
-                  if (userSequence[currentStep] != currentStep) {
-                      gameFailed = true;
-                      break;
-                  }
-                  currentStep++;
-                  delay(250); // Debounce delay
-                //  digitalWrite(leds_pins[randomized_buttons[i]], LOW); // Turn off LED
-                for (int j = 0; j < 16; j++) {
-                    //  strip.setPixelColor(i, colors[i/16]);
-                      strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
-                  
-                }
-                  strip.show();
-                  delay(500);
-                  for (int j = 0; j < 16; j++) {
-                      strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
-                  }
-                  strip.show();
-                      
-              }
-          }
-      }
-      result[counter]=currentStep;
-
-    //    int centerX = SCREEN_WIDTH / 2;
-    //int centerY = SCREEN_HEIGHT / 2;
-
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    tft.setTextSize(3);
-      if (gameFailed) {
-          Serial.println("Game Over!");
-          setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
-          tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
-      } else {
-          Serial.println("You Win!");
-          setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
-          tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
-          NumberOfWins=NumberOfWins+1;
-      }
-
-      delay(3000);
-      setAllPixelsColor(0x000000);
-
-
+      int correctclicks = 0;
+      correctclicks =PlayTheGameAndCalcResults();
+      
+      results[counter]=correctclicks;
       counter=counter+1;
-
-  }
- // WiFi.softAPdisconnect(true);
-  tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-     tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
-     WiFi.begin(ssid.c_str(), password.c_str());
-      while (WiFi.status() != WL_CONNECTED) {
-      delay(1000);
-      Serial.print(".");
-  }
-  Serial.println("\nConnected to Wi-Fi");
- // String data = "success tries " + String(NumberOfWins) + " from 3"; 
-   String data = String(result[0])+ "+" +String(result[1])+ "+" + String(result[2]); 
-
-// Authenticate and get ID Token
-  idToken = getIdToken();
-  if (idToken == "") {
-    Serial.println("Authentication failed");
-    return;
-  }
-
-  // Get the last test number
-  int lastTestNumber = getLastTestNumber(patientId, testName);
-  int newTestNumber = lastTestNumber + 1;
-  String newTestName = "test" + String(newTestNumber);
-
-  // Add the new test field
-  addTestField(patientId, testName, newTestName, data,newTestNumber);
-  tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-    tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
-    delay(5000);
+    } 
     tft.fillScreen(TFT_WHITE);
-     tft.setTextColor(TFT_BLACK, TFT_WHITE);
-     tft.setTextSize(2);
-     tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
+    ConnectToWIFI();
+    String data = String(results[0])+ "+" +String(results[1])+ "+" + String(results[2]); 
+    if (WiFi.status() == WL_CONNECTED) {
+      SaveToFireStore(data);
+    }
+    else{
+      LocalData localdata = {patientId,testName,data};
+      SaveToLocalStorage(localdata);
+    }
 }
 
 void startMathTest(){
@@ -808,7 +823,7 @@ void startMathTest(){
   int correctCount = 0;
   int incorrectCount = 0;
   bool currentResult;
-  int results[5];
+  int results[3];
 
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -818,7 +833,7 @@ void startMathTest(){
     tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
   }
 
-  while(counter!=5){
+  while(counter!=3){
     // Clear the screen before writing to it
     tft.fillScreen(TFT_WHITE);
     tft.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -848,41 +863,19 @@ void startMathTest(){
 
     counter++;
   }
- // WiFi.softAPdisconnect(true);
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK, TFT_WHITE);
   tft.setTextSize(2);
   tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
-  WiFi.begin(ssid.c_str(), password.c_str());
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(1000);
-  Serial.print(".");
-  }
-  Serial.println("\nConnected to Wi-Fi");
+  ConnectToWIFI();
   String data = String(results[0])+ "+" +String(results[1])+ "+" + String(results[2]); 
-// Authenticate and get ID Token
-  idToken = getIdToken();
-  if (idToken == "") {
-    Serial.println("Authentication failed");
-    return;
+  if (WiFi.status() == WL_CONNECTED) {
+    SaveToFireStore(data);
   }
-
-// Get the last test number
-  int lastTestNumber = getLastTestNumber(patientId, testName);
-  int newTestNumber = lastTestNumber + 1;
-  String newTestName = "test" + String(newTestNumber);
-
-  // Add the new test field
-  addTestField(patientId, testName, newTestName, data,newTestNumber);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
-  delay(3000);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
+  else{
+    LocalData localdata = {patientId,testName,data};
+    SaveToLocalStorage(localdata);
+  }
 }
 
 void startReflexTest(){
@@ -936,41 +929,19 @@ void startReflexTest(){
 
     counter++;
   }
- // WiFi.softAPdisconnect(true);
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK, TFT_WHITE);
   tft.setTextSize(2);
   tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
-  WiFi.begin(ssid.c_str(), password.c_str());
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(1000);
-  Serial.print(".");
-  }
-  Serial.println("\nConnected to Wi-Fi");
+  ConnectToWIFI();
   String data = String(results[0])+ "+" +String(results[1])+ "+" + String(results[2]); 
-// Authenticate and get ID Token
-  idToken = getIdToken();
-  if (idToken == "") {
-    Serial.println("Authentication failed");
-    return;
+  if (WiFi.status() == WL_CONNECTED) {
+    SaveToFireStore(data);
   }
-
-// Get the last test number
-  int lastTestNumber = getLastTestNumber(patientId, testName);
-  int newTestNumber = lastTestNumber + 1;
-  String newTestName = "test" + String(newTestNumber);
-
-  // Add the new test field
-  addTestField(patientId, testName, newTestName, data,newTestNumber);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
-  delay(3000);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
+  else{
+    LocalData localdata = {patientId,testName,data};
+    SaveToLocalStorage(localdata);
+  }
 }
 
 void startReadingTest(){
@@ -1027,41 +998,19 @@ void startReadingTest(){
 
     counter++;
   }
- // WiFi.softAPdisconnect(true);
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK, TFT_WHITE);
   tft.setTextSize(2);
   tft.drawCentreString("Saving results...", centerX, centerY, FONT_SIZE); 
-  WiFi.begin(ssid.c_str(), password.c_str());
-  while (WiFi.status() != WL_CONNECTED) {
-  delay(1000);
-  Serial.print(".");
-  }
-  Serial.println("\nConnected to Wi-Fi");
+  ConnectToWIFI();
   String data = String(results[0])+ "+" +String(results[1])+ "+" + String(results[2]); 
-// Authenticate and get ID Token
-  idToken = getIdToken();
-  if (idToken == "") {
-    Serial.println("Authentication failed");
-    return;
+  if (WiFi.status() == WL_CONNECTED) {
+    SaveToFireStore(data);
   }
-
-// Get the last test number
-  int lastTestNumber = getLastTestNumber(patientId, testName);
-  int newTestNumber = lastTestNumber + 1;
-  String newTestName = "test" + String(newTestNumber);
-
-  // Add the new test field
-  addTestField(patientId, testName, newTestName, data,newTestNumber);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString(data, centerX, centerY, FONT_SIZE); 
-  delay(3000);
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString("ready for a new test", centerX, centerY, FONT_SIZE); 
+  else{
+    LocalData localdata = {patientId,testName,data};
+    SaveToLocalStorage(localdata);
+  }
 }
  
 void setup() {
@@ -1077,19 +1026,21 @@ void setup() {
   tft.setRotation(1);
   randomSeed(millis());
   delay(1000);
-
+  Serial.print("Loading deafults");
+//try to connect to default wifi
+  if (!loadDefaultWiFi()){
   // Start ESP32 in AP mode for initial setup
+    WiFi.softAP(ap_ssid, ap_password);
+    Serial.println("Access Point Created: ESP_AP");
+    Serial.print("AP IP Address: ");
+    Serial.println(WiFi.softAPIP());
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.drawCentreString("connect to ESP_AP", centerX, centerY-30, FONT_SIZE);
+    tft.drawCentreString("then send your WIFI", centerX, centerY, FONT_SIZE); 
   
-  WiFi.softAP(ap_ssid, ap_password);
-  Serial.println("Access Point Created: ESP_AP");
-  Serial.print("AP IP Address: ");
-  Serial.println(WiFi.softAPIP());
-  tft.fillScreen(TFT_WHITE);
-  tft.setTextColor(TFT_BLACK, TFT_WHITE);
-  tft.setTextSize(2);
-  tft.drawCentreString("connect to ESP_AP", centerX, centerY-30, FONT_SIZE);
-  tft.drawCentreString("then send your WIFI", centerX, centerY, FONT_SIZE); 
-
+   delay(1000);
   // Define route for setting Wi-Fi credentials
   server.on("/setWifi", HTTP_POST, []() {
       if (server.hasArg("ssid") && server.hasArg("password")) {
@@ -1097,24 +1048,25 @@ void setup() {
           password = server.arg("password");
           server.send(200, "text/plain", "Wi-Fi credentials received. Rebooting...");
 
+          
           // Disconnect AP and connect to Wi-Fi
           WiFi.softAPdisconnect(true);
-          WiFi.begin(ssid.c_str(), password.c_str());
-          int attempts=0;
-          while (WiFi.status() != WL_CONNECTED && attempts < 20) { 
-            tft.fillScreen(TFT_WHITE);
-            tft.setTextColor(TFT_BLACK, TFT_WHITE);
-            tft.setTextSize(2);
-            tft.drawCentreString("trying to connect to", centerX, centerY, FONT_SIZE); 
-            tft.drawCentreString("your WIFI...", centerX, 150, FONT_SIZE); 
-            delay(1000);
-            Serial.print(".");
-            attempts++;
-          }
+          tft.setTextColor(TFT_BLACK, TFT_WHITE);
+          tft.setTextSize(2);
+          tft.drawCentreString("trying to connect to", centerX, centerY, FONT_SIZE); 
+          tft.drawCentreString("your WIFI...", centerX, 150, FONT_SIZE); 
+          ConnectToWIFI();
           if (WiFi.status() == WL_CONNECTED) {
-              Serial.println("\nConnected to Wi-Fi!");
+              Serial.println("\nConnected to Wi-Fi!" + ssid);
               Serial.print("IP Address: ");
               Serial.println(WiFi.localIP());
+              DefaultWiFi defaultWiFi = {ssid,password};
+              SaveDefaultWiFILocally(defaultWiFi);
+              tft.fillScreen(TFT_WHITE);
+              tft.setTextColor(TFT_BLACK, TFT_WHITE);
+              tft.setTextSize(2);
+              tft.drawCentreString("Recovering Data...", centerX, centerY, FONT_SIZE); 
+              loadStruct();
 
               // Start mDNS
               if (!MDNS.begin("esp32")) {
@@ -1124,7 +1076,7 @@ void setup() {
                   tft.fillScreen(TFT_WHITE);
                   tft.setTextColor(TFT_BLACK, TFT_WHITE);
                   tft.setTextSize(2);
-                  tft.drawCentreString("Connected to WIFI", centerX, centerY, FONT_SIZE); 
+                  tft.drawCentreString("Connected to " + ssid, centerX, centerY, FONT_SIZE); 
               }
           } else {
               Serial.println("\nFailed to connect to Wi-Fi.");
@@ -1140,6 +1092,7 @@ void setup() {
           server.send(400, "text/plain", "Missing parameters.");
       }
   });
+  }
 
   // Define a route to handle the "start" command
   server.on("/start",HTTP_POST, []() {

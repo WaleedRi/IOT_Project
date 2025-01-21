@@ -1,93 +1,195 @@
+import 'package:flutter/material.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'globals.dart';
 import 'dart:math';
 
-import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'single_test_results.dart';
-import 'globals.dart';
-import 'graph.dart';
 
+class Graphs extends StatelessWidget {
+  final List<List<double>> allSuccessRates;
+  final double max_y;
+  final int max_x;
+  final List<Color> graphColors;
 
-class TestHistoryWidget extends StatefulWidget {
-  const TestHistoryWidget({super.key});
+  Graphs({
+    required this.allSuccessRates,
+    required this.max_y,
+    required this.max_x,
+    required this.graphColors,
+  });
 
   @override
-  State<TestHistoryWidget> createState() => _TestHistoryWidgetState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: LineChart(
+                  LineChartData(
+                    gridData: FlGridData(show: true),
+                    titlesData: FlTitlesData(
+                      leftTitles: AxisTitles(
+                        sideTitles: SideTitles(showTitles: true),
+                      ),
+                      bottomTitles: AxisTitles(
+                        sideTitles: SideTitles(
+                          showTitles: true,
+                          interval: 1,
+                          getTitlesWidget: (value, meta) {
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 8.0),
+                              child: Text('Test ${value.toInt()}'),
+                            );
+                          },
+                          reservedSize: 40, // Space for x-axis titles
+                        ),
+                      ),
+                    ),
+                    borderData: FlBorderData(show: true),
+                    lineBarsData: _buildMultipleGraphs(),
+
+                    minX: 1,
+                    maxX: 10,
+                    minY: 0,
+                    maxY: max_y,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<LineChartBarData> _buildMultipleGraphs() {
+    List<LineChartBarData> lineCharts = [];
+
+    for (int i = 0; i < allSuccessRates.length; i++) {
+      lineCharts.add(
+        LineChartBarData(
+          spots: allSuccessRates[i]
+              .asMap()
+              .entries
+              .map((entry) => FlSpot(entry.key.toDouble() + 1, entry.value))
+              .toList(),
+          isCurved: true,
+          color: graphColors[i],
+          barWidth: 3,
+          belowBarData: BarAreaData(show: false),
+          dotData: FlDotData(show: true),
+        ),
+      );
+    }
+
+    return lineCharts;
+  }
 }
 
-class _TestHistoryWidgetState extends State<TestHistoryWidget> {
+class TestsAverageHistoryWidget extends StatefulWidget {
+  const TestsAverageHistoryWidget({super.key});
+
+  @override
+  State<TestsAverageHistoryWidget> createState() => _TestsAverageHistoryWidgetState();
+}
+
+class _TestsAverageHistoryWidgetState extends State<TestsAverageHistoryWidget> {
   final GlobalKey<ScaffoldState> scaffoldKey = GlobalKey<ScaffoldState>();
   int lastTest=0;
   List<int> FirstAttempt = [];
   List<int> SecondAttempt = [];
   List<int> ThirdAttempt = [];
-  List<int> best_score = [];
-  List<int> times_perfect_score=[];
-  List<double> average_score=[];
+  //List<int> best_score = [];
+  //List<int> times_perfect_score=[];
+  List<List<double>> average_score=[];
   List<double> success_rate=[];
+  int numOfTests=0;
 
 
 
 
-  Future<void> fetchTests() async {
+  Future<void> fetchAllTests() async {
+
     try {
-      DocumentSnapshot snapshot = await FirebaseFirestore.instance
-          .collection('patients')
-          .doc(PatientId)
-          .collection('results')
-          .doc(TestGameName)
-          .get();
+      CollectionReference collectionRef = FirebaseFirestore.instance.collection(
+          'patients').doc(PatientId).collection('results');
 
-      print('patients/$PatientId/results/$TestGameName');
-      if (snapshot.exists) {
-        lastTest =snapshot.get('tests_numbers');
-        times_perfect_score = List.filled(lastTest , 0);
-        print(lastTest);
-        setState(() {
-          for(int i =0; i<lastTest;i++){
-            String result =snapshot.get('test'+(i+1).toString());
-            List<String> parts = result.split('+');
-            FirstAttempt.add(int.parse(parts[0].trim()));
-            SecondAttempt.add(int.parse(parts[1].trim()));
-            ThirdAttempt.add(int.parse(parts[2].trim()));
-            print('First Attempt for test $i: ${FirstAttempt[i]}');
-            print('Second Attempt for test $i: ${SecondAttempt[i]}');
-            print('Third Attempt for test $i: ${ThirdAttempt[i]}');
-            best_score.add(max(max(FirstAttempt[i],SecondAttempt[i]),ThirdAttempt[i]));
-            if (FirstAttempt[i]==5) {
-              times_perfect_score[i] +=1;
-            }
-            if (SecondAttempt[i]==5) {
-              times_perfect_score[i] +=1;
-            }
-            if (ThirdAttempt[i]==5) {
-              times_perfect_score[i] +=1;
-            }
-
-            success_rate.add((FirstAttempt[i] +
-                SecondAttempt[i] +
-                ThirdAttempt[i]) /
-                15);
-            average_score.add(success_rate[i] * 5);
-
+      QuerySnapshot querySnapshot = await collectionRef.get();
+      int j = 0;
+      average_score = List.generate(5, (_) => []);
+      for (var doc in querySnapshot.docs) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        lastTest = data['tests_numbers'];
+        numOfTests = lastTest>numOfTests ? lastTest : numOfTests;
+        success_rate =[];
+        FirstAttempt = [];
+        SecondAttempt = [];
+        ThirdAttempt = [];
+        //average_score = List.filled(lastTest , []);
+      //  average_score = List.generate(lastTest+1, (_) => []);
+        print('average_score list : ${average_score}');
+        print("lastTest : ${lastTest}");
+        print("numOfTests : ${numOfTests}");
+        for(int i =0; i<lastTest;i++){
+          String result =data['test'+(i+1).toString()];
+          List<String> parts = result.split('+');
+          FirstAttempt.add(int.parse(parts[0].trim()));
+          SecondAttempt.add(int.parse(parts[1].trim()));
+          ThirdAttempt.add(int.parse(parts[2].trim()));
+          print('First Attempt for test $i: ${FirstAttempt[i]}');
+          print('Second Attempt for test $i: ${SecondAttempt[i]}');
+          print('Third Attempt for test $i: ${ThirdAttempt[i]}');
+        //  best_score.add(max(max(FirstAttempt[i],SecondAttempt[i]),ThirdAttempt[i]));
+      /*    if (FirstAttempt[i]==5) {
+       //     times_perfect_score[i] +=1;
           }
+          if (SecondAttempt[i]==5) {
+       //     times_perfect_score[i] +=1;
+          }
+          if (ThirdAttempt[i]==5) {
+      //      times_perfect_score[i] +=1;
+          }
+*/
+          success_rate.add((FirstAttempt[i] +
+              SecondAttempt[i] +
+              ThirdAttempt[i]) /
+              15);
+          print('First Attempt for test : ${success_rate}');
+
+          average_score[j].add(success_rate[i] * 5);
+
+
         }
-        );
+
+         j++;
       }
+
     } catch (e) {
       print('Error fetching Tests: $e');
     }
   }
 
+  bool _isLoading = true; // Add a loading state
 
   @override
   void initState() {
     super.initState();
-    fetchTests();
+    fetchAllTests().then((_) {
+      setState(() {
+        _isLoading = false; // Data has been fetched
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return _isLoading
+        ? Center(child: CircularProgressIndicator())  //
+        : GestureDetector(
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         key: scaffoldKey,
@@ -120,84 +222,18 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
               child: Column(
                 children: [
                   buildSectionTitle('Recent Tests'),
-                  ...buildRecentTests(),
+                 // ...buildRecentTests(),
                   SizedBox(height: 24),
                   buildSmallGraphContainer(
-                    context,
-                    title: 'Average Score Progression',
-                  //  placeholder: 'Graph showing average score trend across tests',
-                    successRates: average_score,
-                    max_y: 5,
-                    healthy_baseline: 3.5,
-                    colorgraph:  Colors.blue
-                  ),
-                  SizedBox(height: 24),
-                      buildSmallGraphContainer(
-                        context,
-                        title: 'Success Rate',
-                      //  placeholder: 'Success rate graph',
-                        successRates: success_rate.map((num) => num * 100).toList(),
-                          max_y: 100,
-                          healthy_baseline: 80,
-                          colorgraph:  Colors.cyanAccent
-
-                      ),
-                  SizedBox(height: 24),
-                  buildSmallGraphContainer(
-                    context,
-                    title: 'Best Scores',
-                  //  placeholder: 'Best scores graph',
-                    successRates:   best_score.map((e) => e.toDouble()).toList(),
+                      context,
+                      title: 'Average Score Progression',
+                      //  placeholder: 'Graph showing average score trend across tests',
+                      successRates: average_score,
                       max_y: 5,
-                      healthy_baseline: 5,
-                      colorgraph:  Colors.green
-
+                      max_x: numOfTests,
+                   //   healthy_baseline: 3.5,
+                      graphColors:  [Colors.blue,Colors.green, Colors.yellow,Colors.purple,Colors.orange]
                   ),
-                  SizedBox(height: 24),
-                  buildSmallGraphContainer(
-                    context,
-                    title: 'Perfect Scores',
-                  //  placeholder: 'Perfect scores graph',
-                    successRates: times_perfect_score.map((e) => e.toDouble()).toList(),
-                    max_y: 3,
-                    healthy_baseline: 1.5,
-                    colorgraph:  Colors.yellow
-
-                  ),
-                  SizedBox(height: 24),
-                      buildSmallGraphContainer(
-                        context,
-                        title: 'First Attempt',
-                    //    placeholder: 'First attempt performance graph',
-                        successRates: FirstAttempt.map((e) => e.toDouble()).toList(),
-                        max_y: 5,
-                        healthy_baseline: 3,
-                        colorgraph:  Colors.purple
-
-                      ),
-                  SizedBox(height: 24),
-                      buildSmallGraphContainer(
-                        context,
-                        title: 'Second Attempt',
-                  //      placeholder: 'Second attempt performance graph',
-                        successRates: SecondAttempt.map((e) => e.toDouble()).toList(),
-                        max_y: 5,
-                        healthy_baseline: 4,
-                        colorgraph:  Colors.pink
-
-
-                      ),
-                  SizedBox(height: 24),
-                      buildSmallGraphContainer(
-                        context,
-                        title: 'Third Attempt',
-                   //     placeholder: 'Third attempt performance graph',
-                        successRates: ThirdAttempt.map((e) => e.toDouble()).toList(),
-                        max_y: 5,
-                        healthy_baseline: 4.5,
-                        colorgraph:  Colors.orange
-
-                      ),
 
                 ],
               ),
@@ -221,7 +257,7 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
       ),
     );
   }
-
+/*
   List<Widget> buildRecentTests() {
     return [
       const SizedBox(height: 16),
@@ -267,6 +303,8 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
       ),*/
     ];
   }
+
+ */
 
   Widget buildRecentTestTile({
     required String testNumber,
@@ -330,7 +368,7 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
               SizedBox(width: 12),
               ElevatedButton(
                 onPressed: () {
-                  navigateToSingleTestResultWidget(firstAttempt,secondAttempt,thirdAttempt,bestScore,timesPerfectScore,averageScore,successRate);
+             //     navigateToSingleTestResultWidget(firstAttempt,secondAttempt,thirdAttempt,bestScore,timesPerfectScore,averageScore,successRate);
                   // Handle "View Results" button press
                 },
                 style: ElevatedButton.styleFrom(
@@ -350,10 +388,11 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
   Widget buildGraphContainer(
       BuildContext context, {
         required String title,
-        required List<double> successRates,
+        required List<List<double>> successRates,
         required double max_y,
-        required double healthy_baseline,
-        required Color colorgraph,
+        required int max_x,
+     //   required double healthy_baseline,
+        required List<Color> graphColors,
 
       }) {
     return Container(
@@ -376,7 +415,7 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
           const SizedBox(height: 16),
           Container(
             height: 450,
-            child: SuccessRateGraph(successRates: successRates,max_y: max_y,healthy_baseline: healthy_baseline,colorgraph: colorgraph,),
+            child: Graphs(allSuccessRates: successRates,max_y: max_y,max_x:max_x,graphColors: graphColors,),
           ),
         ],
       ),
@@ -390,10 +429,11 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
 
   Widget buildSmallGraphContainer(BuildContext context,
       {required String title,
-        required List<double> successRates,
+        required List<List<double>>  successRates,
         required double max_y,
-        required double healthy_baseline,
-        required Color colorgraph}) {
+        required int max_x,
+        //required double healthy_baseline,
+        required List<Color> graphColors}) {
     return Container(
       padding: const EdgeInsets.all(16.0),
       decoration: BoxDecoration(
@@ -413,19 +453,15 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
           SizedBox(height: 16),
           Container(
             height: 450,
-            child: SuccessRateGraph(
-              successRates: sanitizeData(successRates),
-              max_y: max_y,
-              healthy_baseline: healthy_baseline,
-              colorgraph: colorgraph,
-            ),
+            child: Graphs(allSuccessRates: successRates,max_y: max_y,max_x:max_x,graphColors: graphColors,),
+
           ),
         ],
       ),
     );
   }
 
-  void navigateToSingleTestResultWidget(String firstAttempt,
+/*  void navigateToSingleTestResultWidget(String firstAttempt,
       String secondAttempt,
       String thirdAttempt,
       String bestScore,
@@ -435,15 +471,16 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => SingleTestResultWidget(
-             firstAttempt: firstAttempt,
-             secondAttempt: secondAttempt,
-             thirdAttempt: thirdAttempt,
-             bestScore: bestScore,
-             timesPerfectScore: timesPerfectScore,
-             averageScore: averageScore,
-             successRate: successRate)
+          builder: (context) => SingleTestResultWidget(
+              firstAttempt: firstAttempt,
+              secondAttempt: secondAttempt,
+              thirdAttempt: thirdAttempt,
+              bestScore: bestScore,
+              timesPerfectScore: timesPerfectScore,
+              averageScore: averageScore,
+              successRate: successRate)
       ),
     );
-  }
+  }*/
 }
+

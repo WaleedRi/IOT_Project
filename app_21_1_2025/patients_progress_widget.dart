@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'wifi_setup_screen.dart';
 import 'edit_patient_widget.dart';
 import 'patient_goals.dart';
+import 'graph_summery.dart';
 
 import 'tests_widget.dart';
 import 'globals.dart';
@@ -44,6 +45,15 @@ class _PatientsProgressWidgetState extends State<PatientsProgressWidget> {
       context,
       MaterialPageRoute(
         builder: (context) => TestsWidget(),
+      ),
+    );
+  }
+
+  void navigateToTestsAverageHistoryWidgetWidget() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TestsAverageHistoryWidget(),
       ),
     );
   }
@@ -433,7 +443,7 @@ class _PatientsProgressWidgetState extends State<PatientsProgressWidget> {
                       PatientId = id;
                       navigateToTestsWidget();
                     },
-                    child: const Text('View Details'),
+                    child: const Text('View Tests'),
                   ),
                   ElevatedButton(
                     onPressed: () {
@@ -442,6 +452,14 @@ class _PatientsProgressWidgetState extends State<PatientsProgressWidget> {
                       navigateToGoalsWidget();
                     },
                     child: const Text('View Goals'),
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      PatientName = name;
+                      PatientId = id;
+                      navigateToTestsAverageHistoryWidgetWidget();
+                    },
+                    child: const Text('View Overall Results'),
                   ),
                   /*const SizedBox(height: 8),
                   Text(

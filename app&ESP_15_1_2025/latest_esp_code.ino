@@ -69,6 +69,16 @@ XPT2046_Touchscreen touchscreen(XPT2046_CS, XPT2046_IRQ);
 unsigned long buttons_pins[] = {BUTTON1_PIN, BUTTON2_PIN, BUTTON3_PIN, BUTTON4_PIN, BUTTON5_PIN};
 int randomized_buttons[NUMPIXELS];
 
+// Reflex Game variables
+unsigned long lightUpTime = 0;
+unsigned long reactionTime = 0;
+int activeButton = -1;
+bool gameActive = false;
+
+// Store reaction times
+int reactionTimes[50];
+int testCount = 0;
+
 // Define colors for NeoPixel corresponding to buttons
 uint32_t colors[] = {
     0xFFFF00,  // Yellow
@@ -119,8 +129,24 @@ struct DefaultWiFi{
   String password;
 };
 
+// List of correct words
+const char* foodWords[] = {
+  "apple", "banana", "carrot", "orange", "tomato", "grapes", "cherry", "peach", "lemon", "mango"
+};
 
+const char* numbersWords[] = {
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"
+};
+const char* complexWords[] = {
+  "table", "curtain", "extension", "window", "television", "computer", "keyboard", "rehabilitation", "health", "officer"
+};
 
+#define NUM_WORDS (sizeof(foodWords) / sizeof(foodWords[0]))
+
+struct WordQuestion {
+  char displayedWord[15];  // Buffer for word storage
+  bool isCorrect;
+};
 
 // MP3 player communication pins and commands
 HardwareSerial MP3(2);
@@ -227,14 +253,12 @@ void clearStruct() {
     preferences.end();
 }
 
-
-
 // Generate a random question
-MathQuestion generateQuestion() {
+MathQuestion generateQuestion(int op) {
   MathQuestion q;
   q.num1 = random(1, 10);
   q.num2 = random(1, 10);
-  int op = random(0, 4); // 0:add, 1:sub, 2:mul, 3:div
+  //int op = random(0, 3); // 0:add, 1:sub, 2:mul, 3:div
 
   switch (op) {
     case 0:
@@ -249,10 +273,6 @@ MathQuestion generateQuestion() {
       q.operation = '*';
       q.correctAnswer = q.num1 * q.num2;
       break;
-    case 3:
-      q.operation = '/';
-      q.correctAnswer = (q.num2 != 0) ? q.num1 / q.num2 : q.num1;
-      break;
   }
 
   // Randomly decide if the displayed answer is correct
@@ -261,6 +281,70 @@ MathQuestion generateQuestion() {
   } else {
     q.displayedAnswer = q.correctAnswer + random(-3, 4);
   }
+  return q;
+}
+
+// Function to introduce an error in a given word
+void introduceError(char* word) {
+  int len = strlen(word);
+  int errorType = random(0, 3); // 0: swap, 1: insert, 2: delete
+  
+  switch (errorType) {
+    case 0:  // Swap two letters
+      if (len > 1) {
+        int i = random(0, len - 1);
+        char temp = word[i];
+        word[i] = word[i + 1];
+        word[i + 1] = temp;
+      }
+      break;
+      
+    case 1:  // Insert a random letter
+      if (len < 14) {
+        int i = random(0, len);
+        for (int j = len; j > i; j--) {
+          word[j] = word[j - 1];
+        }
+        word[i] = 'a' + random(0, 26);
+        word[len + 1] = '\0';
+      }
+      break;
+      
+    case 2:  // Delete a letter
+      if (len > 1) {
+        int i = random(0, len);
+        for (int j = i; j < len - 1; j++) {
+          word[j] = word[j + 1];
+        }
+        word[len - 1] = '\0';
+      }
+      break;
+  }
+}
+
+// Generate a random word question
+WordQuestion generateWordQuestion(int dictionary) {
+  WordQuestion q;
+  int index = int(random(0, NUM_WORDS));
+  switch (dictionary) {
+    case 0:  // Swap two letters
+      strcpy(q.displayedWord, foodWords[index]);
+      break;
+    case 1: 
+      strcpy(q.displayedWord, numbersWords[index]);
+      break;
+    case 2: 
+      strcpy(q.displayedWord, complexWords[index]);
+      break;
+  }
+
+  if (int(random(0, 2)) == 0) {
+    q.isCorrect = true;
+  } else {
+    q.isCorrect = false;
+    introduceError(q.displayedWord);
+  }
+
   return q;
 }
 
@@ -277,12 +361,22 @@ void drawButtons() {
 }
 
 // Display the math question
-void displayQuestion(MathQuestion q) {
+void displayMathQuestion(MathQuestion q) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextSize(3);
-  tft.setCursor(30, 80);
+  tft.setCursor(70, 80);
   tft.printf("%d %c %d = %d", q.num1, q.operation, q.num2, q.displayedAnswer);
+  drawButtons();
+}
+
+// Display the word question
+void displayWordQuestion(WordQuestion q) {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(3);
+  tft.setCursor(70, 80);
+  tft.print(q.displayedWord);
   drawButtons();
 }
 
@@ -297,7 +391,7 @@ void convertTouchCoordinates(int &x, int &y) {
   y = map(y, TOUCH_MIN_Y, TOUCH_MAX_Y, 0, SCREEN_HEIGHT);
 }
 
-bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
+bool handleMathTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
   bool result;
   bool Istouched=false;
   while (!(touchscreen.tirqTouched() && touchscreen.touched())){
@@ -319,9 +413,9 @@ bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
       if (q.displayedAnswer == q.correctAnswer) {
         correctCount++;
         tft.fillScreen(TFT_GREEN);
-        tft.setCursor(70, 120);
+        tft.setCursor(50, 120);
         tft.setTextColor(TFT_WHITE);
-        tft.setTextSize(3);
+        tft.setTextSize(5);
         tft.print("Correct!");
         result = true;
       } else {
@@ -329,19 +423,19 @@ bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
         tft.fillScreen(TFT_RED);
         tft.setCursor(70, 120);
         tft.setTextColor(TFT_WHITE);
-        tft.setTextSize(3);
+        tft.setTextSize(5);
         tft.print("Wrong!");
         result = false;
       }
-      delay(1500);
+      delay(1000);
     } else if (isButtonPressed(touchX, touchY, FALSE_BTN_X, FALSE_BTN_Y, BUTTON_WIDTH, BUTTON_HEIGHT)) {
       Istouched = true;
       if (q.displayedAnswer != q.correctAnswer) {
         correctCount++;
         tft.fillScreen(TFT_GREEN);
-        tft.setCursor(70, 120);
+        tft.setCursor(50, 120);
         tft.setTextColor(TFT_WHITE);
-        tft.setTextSize(3);
+        tft.setTextSize(5);
         tft.print("Correct!");
         result = true;
       } else {
@@ -349,11 +443,73 @@ bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
         tft.fillScreen(TFT_RED);
         tft.setCursor(70, 120);
         tft.setTextColor(TFT_WHITE);
-        tft.setTextSize(3);
+        tft.setTextSize(5);
         tft.print("Wrong!");
         result = false;
       }
-      delay(1500);
+      delay(1000);
+    }
+  }
+  return result;
+}
+
+bool handleReadingTouch(WordQuestion q, int &correctCount, int &incorrectCount) {
+  bool result;
+  bool Istouched=false;
+  while (!(touchscreen.tirqTouched() && touchscreen.touched())){
+    Serial.print("Waiting for answer...");
+  }
+  while (!Istouched) {
+    TS_Point p = touchscreen.getPoint();
+    int touchX = p.x;
+    int touchY = p.y;
+
+    convertTouchCoordinates(touchX, touchY);
+
+    Serial.print("touch coordinates");
+    Serial.println(touchX);
+    Serial.println(touchY);
+    // Determine if user pressed True or False
+    if (isButtonPressed(touchX, touchY, TRUE_BTN_X, TRUE_BTN_Y, BUTTON_WIDTH, BUTTON_HEIGHT)) {
+      Istouched = true;
+      if (q.isCorrect) {
+        correctCount++;
+        tft.fillScreen(TFT_GREEN);
+        tft.setCursor(50, 120);
+        tft.setTextColor(TFT_WHITE);
+        tft.setTextSize(5);
+        tft.print("Correct!");
+        result = true;
+      } else {
+        incorrectCount++;
+        tft.fillScreen(TFT_RED);
+        tft.setCursor(70, 120);
+        tft.setTextColor(TFT_WHITE);
+        tft.setTextSize(5);
+        tft.print("Wrong!");
+        result = false;
+      }
+      delay(1000);
+    } else if (isButtonPressed(touchX, touchY, FALSE_BTN_X, FALSE_BTN_Y, BUTTON_WIDTH, BUTTON_HEIGHT)) {
+      Istouched = true;
+      if (!q.isCorrect) {
+        correctCount++;
+        tft.fillScreen(TFT_GREEN);
+        tft.setCursor(50, 120);
+        tft.setTextColor(TFT_WHITE);
+        tft.setTextSize(5);
+        tft.print("Correct!");
+        result = true;
+      } else {
+        incorrectCount++;
+        tft.fillScreen(TFT_RED);
+        tft.setCursor(70, 120);
+        tft.setTextColor(TFT_WHITE);
+        tft.setTextSize(5);
+        tft.print("Wrong!");
+        result = false;
+      }
+      delay(1000);
     }
   }
   return result;
@@ -361,14 +517,106 @@ bool handleTouch(MathQuestion q, int &correctCount, int &incorrectCount) {
 
 void displayResults(int correctCount, int incorrectCount) {
   tft.fillScreen(TFT_BLACK);
-  tft.setTextSize(2);
-  tft.setCursor(50, 100);
+  tft.setTextSize(4);
+  tft.setCursor(20, 80);
   tft.setTextColor(TFT_YELLOW);
   tft.printf("Correct: %d", correctCount);
-  tft.setCursor(50, 140);
+  tft.setCursor(20, 160);
   tft.printf("Incorrect: %d", incorrectCount);
   delay(1000);
 }
+
+// Function to light up a random LED ring
+void activateRandomRing() {
+  // Turn off all LEDs first
+  strip.clear();
+  
+  // Select a random ring
+  activeButton = random(0, NUMPIXELS);
+
+  // Light up the selected ring (each ring has 16 LEDs)
+  int startIdx = activeButton * 16;
+  for (int i = startIdx; i < startIdx + 16; i++) {
+    strip.setPixelColor(i, strip.Color(0, 0, 255));  // Set red color
+  }
+
+  strip.show();
+  lightUpTime = millis();
+  gameActive = true;
+  
+  displayMessage("Press Button:", activeButton + 1);
+}
+
+// Function to check if the correct button is pressed
+void checkButtonPress() {
+  while(gameActive){
+    for (int i = 0; i < NUMPIXELS; i++) {
+      if (digitalRead(buttons_pins[i]) == HIGH) {
+        if (i == activeButton && gameActive) {
+          reactionTime = millis() - lightUpTime;
+          reactionTimes[testCount++] = reactionTime;
+          
+          strip.clear();
+          strip.show();
+          gameActive = false;
+
+          char resultMsg[30];
+          sprintf(resultMsg, "Reaction: %d ms", reactionTime);
+          displayMessage(resultMsg, -1);
+
+          delay(1000);
+          if (testCount < 50) {
+            activateRandomRing();
+          } else {
+            showResults();
+          }
+        } else {
+          displayMessage("Wrong button!", -1);
+        }
+      }
+    }
+  }
+}
+
+// Function to display results on the touchscreen
+void showResults() {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(2);
+  tft.setCursor(20, 30);
+  tft.println("Test Completed!");
+  
+  tft.setTextSize(2);
+  for (int i = 0; i < testCount; i++) {
+    tft.setCursor(20, 50 + (i * 15));
+    tft.printf("Attempt %d: %d ms\n", i + 1, reactionTimes[i]);
+  }
+
+  delay(5000);
+  testCount = 0;
+  //activateRandomRing();
+}
+
+// Function to display current score on touchscreen
+void displayMessage(const char* message, int buttonNumber) {
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(3);
+  tft.setCursor(30, 80);
+  tft.print(message);
+  
+  if (buttonNumber != -1) {
+    tft.setCursor(30, 120);
+    tft.print("Button: ");
+    tft.print(buttonNumber);
+  }
+
+  // Show current score
+  tft.setTextSize(2);
+  tft.setCursor(30, 180);
+  tft.printf("Score: %d/%d", testCount, 50);
+}
+
 
 void shuffleArray(int arr[], int n) {
     srand(time(NULL));
@@ -653,12 +901,12 @@ int PlayTheGameAndCalcResults(){
                   break;
               }
               currentStep++;
-              delay(250); // Debounce delay
+              delay(150); // Debounce delay
               for (int j = 0; j < 16; j++) {
                 strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
               }
               strip.show();
-              delay(500);
+              delay(150);
               for (int j = 0; j < 16; j++) {
                   strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
               }
@@ -772,7 +1020,7 @@ void startTestHandler() {
           Serial.println("MP3 reset failed");
       }
       selectSDCard();
-      setVolume(50);
+      setVolume(100);
       // Initialize NeoPixel
       strip.begin();
         for (int i = 0; i < 16*NUMPIXELS; i++) {
@@ -832,35 +1080,46 @@ void startMathTest(){
     tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
     tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
   }
-
+    tft.fillScreen(TFT_BLACK);
+    tft.setTextColor(TFT_WHITE);
+    tft.setTextSize(3);
+    tft.setCursor(20, centerY);
+    tft.print("Is this equation correct?");
+    delay(2000);
   while(counter!=3){
-    // Clear the screen before writing to it
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    // delay(1000);
-    // tft.drawCentreString("Answer the following question:", centerX, centerY-70, FONT_SIZE);
-    MathQuestion question = generateQuestion();
-    displayQuestion(question);
-
-    currentResult = handleTouch(question, correctCount, incorrectCount);
-    results[counter] = int(currentResult);
+    int currOpCount=0;
+    results[counter] = 0;
+    while(currOpCount != 5){
+      // Clear the screen before writing to it
+      // tft.fillScreen(TFT_WHITE);
+      // tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      
+      //tft.drawCentreString("Is this equation correct?", centerX, centerY-70, FONT_SIZE);
+      
+      MathQuestion question = generateQuestion(counter);
+      displayMathQuestion(question);
+      currentResult = handleMathTouch(question, correctCount, incorrectCount);
+      if (currentResult){
+        results[counter]++;
+      }
+      if (!currentResult) {
+          Serial.println("Game Over!");
+          setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
+          // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
+      } else {
+          Serial.println("You Win!");
+          setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
+          // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
+          NumberOfWins=NumberOfWins+1;
+      }
+      displayResults(correctCount, incorrectCount);
+      delay(3000);
+      setAllPixelsColor(0x000000);
+      currOpCount++;
+    }
     // tft.fillScreen(TFT_WHITE);
     // tft.setTextColor(TFT_BLACK, TFT_WHITE);
     // tft.setTextSize(3);
-    if (!currentResult) {
-        Serial.println("Game Over!");
-        setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
-        // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
-    } else {
-        Serial.println("You Win!");
-        setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
-        // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
-        NumberOfWins=NumberOfWins+1;
-    }
-    displayResults(correctCount, incorrectCount);
-    delay(3000);
-    setAllPixelsColor(0x000000);
-
     counter++;
   }
   tft.fillScreen(TFT_WHITE);
@@ -879,9 +1138,10 @@ void startMathTest(){
 }
 
 void startReflexTest(){
-  Serial.println("Start Math Test Request Received");
+  Serial.println("Start Reflex Test Request Received");
   // Call the existing setup() to restart the test sequence
   // Start the SPI for the touchscreen and init the touchscreen
+  // Initialize LED rings and buttons
 
   int counter=0;
   int NumberOfWins=0;
@@ -889,46 +1149,56 @@ void startReflexTest(){
   int incorrectCount = 0;
   bool currentResult;
   int results[3];
-  while(counter!=3){
-    // Clear the screen before writing to it
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    tft.setTextSize(2);
-    while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
-      tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
-      tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
-    }
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    delay(1000);
-    tft.drawCentreString("Answer the following question:", centerX, centerY-70, FONT_SIZE);
-    MathQuestion question = generateQuestion();
-    displayQuestion(question);
-
-    currentResult = handleTouch(question, correctCount, incorrectCount);
-    results[counter] = int(currentResult);
-    
-    delay(1000);
-    displayResults(correctCount, incorrectCount);
-
-    // tft.fillScreen(TFT_WHITE);
-    // tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    // tft.setTextSize(3);
-    if (!currentResult) {
-        Serial.println("Game Over!");
-        setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
-        // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
-    } else {
-        Serial.println("You Win!");
-        setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
-        // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
-        NumberOfWins=NumberOfWins+1;
-    }
-    delay(3000);
-    setAllPixelsColor(0x000000);
-
-    counter++;
+  
+  strip.begin();
+  strip.clear();
+  strip.show();
+  for (int i = 0; i < NUMPIXELS; i++) {  
+    pinMode(buttons_pins[i], INPUT_PULLDOWN);
   }
+  activateRandomRing();
+  checkButtonPress();
+
+  // while(counter!=3){
+  //   // Clear the screen before writing to it
+  //   tft.fillScreen(TFT_WHITE);
+  //   tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  //   tft.setTextSize(2);
+  //   while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
+  //     tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
+  //     tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
+  //   }
+  //   tft.fillScreen(TFT_WHITE);
+  //   tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  //   delay(1000);
+  //   tft.drawCentreString("Answer the following question:", centerX, centerY-70, FONT_SIZE);
+  //   MathQuestion question = generateQuestion();
+  //   displayMathQuestion(question);
+
+  //   currentResult = handleTouch(question, correctCount, incorrectCount);
+  //   results[counter] = int(currentResult);
+    
+  //   delay(1000);
+  //   displayResults(correctCount, incorrectCount);
+
+  //   // tft.fillScreen(TFT_WHITE);
+  //   // tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  //   // tft.setTextSize(3);
+  //   if (!currentResult) {
+  //       Serial.println("Game Over!");
+  //       setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
+  //       // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
+  //   } else {
+  //       Serial.println("You Win!");
+  //       setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
+  //       // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
+  //       NumberOfWins=NumberOfWins+1;
+  //   }
+  //   delay(3000);
+  //   setAllPixelsColor(0x000000);
+
+  //   counter++;
+  // }
   tft.fillScreen(TFT_WHITE);
   tft.setTextColor(TFT_BLACK, TFT_WHITE);
   tft.setTextSize(2);
@@ -956,46 +1226,62 @@ void startReadingTest(){
   bool currentResult;
   int results[3];
 
+  tft.fillScreen(TFT_WHITE);
+  tft.setTextColor(TFT_BLACK, TFT_WHITE);
+  tft.setTextSize(2);
+
   while (!(touchscreen.tirqTouched() && touchscreen.touched())) {
     tft.drawCentreString("touch the screen", centerX, centerY-20, FONT_SIZE);
     tft.drawCentreString("to start!", centerX, centerY+10, FONT_SIZE);
   }
-
+  tft.fillScreen(TFT_BLACK);
+  tft.setTextColor(TFT_WHITE);
+  tft.setTextSize(3);
+  tft.setCursor(20, centerY);
+  tft.print("Is this a Word?");
+  delay(2000);
   while(counter!=3){
-    // Clear the screen before writing to it
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    tft.setTextSize(2);
+    int currOpCount = 0;
+    results[counter] = 0;
+    while(currOpCount != 5){
+      // Clear the screen before writing to it
+      // tft.fillScreen(TFT_WHITE);
+      // tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      // tft.setTextSize(2);
 
-    tft.fillScreen(TFT_WHITE);
-    tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    delay(1000);
-    tft.drawCentreString("Answer the following question:", centerX, centerY-70, FONT_SIZE);
-    MathQuestion question = generateQuestion();
-    displayQuestion(question);
+      WordQuestion question = generateWordQuestion(counter);
+      displayWordQuestion(question);
 
-    currentResult = handleTouch(question, correctCount, incorrectCount);
-    results[counter] = int(currentResult);
-    
-    delay(1000);
-    displayResults(correctCount, incorrectCount);
+      // unsigned long startTime = millis();
+      // while (millis() - startTime < 10000) {  // Allow 10 seconds to answer
+      //   handleTouch(question);
+      // }
 
-    // tft.fillScreen(TFT_WHITE);
-    // tft.setTextColor(TFT_BLACK, TFT_WHITE);
-    // tft.setTextSize(3);
-    if (!currentResult) {
-        Serial.println("Game Over!");
-        setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
-        // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
-    } else {
-        Serial.println("You Win!");
-        setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
-        // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
-        NumberOfWins=NumberOfWins+1;
+      currentResult = handleReadingTouch(question, correctCount, incorrectCount);
+      if (currentResult){
+        results[counter]++;
+      }
+      
+      //delay(1000);
+
+      // tft.fillScreen(TFT_WHITE);
+      // tft.setTextColor(TFT_BLACK, TFT_WHITE);
+      // tft.setTextSize(3);
+      if (!currentResult) {
+          Serial.println("Game Over!");
+          setAllPixelsColor(0xFF0000); // Turn all NeoPixels red
+          // tft.drawCentreString("Game Over!", centerX, centerY, FONT_SIZE);
+      } else {
+          Serial.println("You Win!");
+          setAllPixelsColor(0x00FF00); // Turn all NeoPixels green
+          // tft.drawCentreString("You Win!", centerX, centerY, FONT_SIZE);
+          NumberOfWins=NumberOfWins+1;
+      }
+      displayResults(correctCount, incorrectCount);
+      delay(2000);
+      setAllPixelsColor(0x000000);
+      currOpCount++;
     }
-    delay(3000);
-    setAllPixelsColor(0x000000);
-
     counter++;
   }
   tft.fillScreen(TFT_WHITE);
@@ -1048,7 +1334,6 @@ void setup() {
           password = server.arg("password");
           server.send(200, "text/plain", "Wi-Fi credentials received. Rebooting...");
 
-          
           // Disconnect AP and connect to Wi-Fi
           WiFi.softAPdisconnect(true);
           tft.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -1104,6 +1389,7 @@ void setup() {
         server.send(400, "text/plain", "Missing parameters.");
       } 
       WiFi.disconnect(true);
+      setAllPixelsColor(0x000000);
       if(testName=="Auditory"){
         startTestHandler();
       }
@@ -1113,8 +1399,11 @@ void setup() {
       else if(testName=="Basic_math"){
         startMathTest();
       }
-      else if (testName=="Reading_test"){
-        
+      else if (testName=="Reading_text"){
+        startReadingTest();
+      }
+      else if (testName=="Reflex"){
+        startReflexTest();
       }
       server.send(200, "text/plain", "Command executed!");
   });

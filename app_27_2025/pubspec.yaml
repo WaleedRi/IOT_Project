@@ -41,6 +41,9 @@ dependencies:
   firebase_messaging: ^15.2.1  # Specify the latest stable version
   firebase_core:  ^3.9.0        # Specify the latest stable version
   android_alarm_manager_plus:  ^3.0.4
+  csv: ^5.0.0
+  permission_handler: ^11.3.1  # Ensure this is included and updated
+  device_info_plus: ^9.0.0  # Add this line for device information
  # background_fetch: ^1.1.3
 
 

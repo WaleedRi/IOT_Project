@@ -12,7 +12,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:workmanager/workmanager.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 
-
+import 'my_patients_data_widget.dart';
 import 'tests_widget.dart';
 import 'globals.dart';
 import 'add_patient_widget.dart';
@@ -497,11 +497,47 @@ class _PatientsProgressWidgetState extends State<PatientsProgressWidget> {
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             _buildOverviewColumn(context,this.PateintsNameAndId.length.toString(), 'Active Patients'),
            // _buildOverviewColumn(context, '78%', 'Avg Progress'),
            // _buildOverviewColumn(context, '156', 'Tests Completed'),
+            // Download Data Column
+            Column(
+              mainAxisSize: MainAxisSize.max,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                InkWell(
+                  splashColor: Colors.transparent,
+                  focusColor: Colors.transparent,
+                  hoverColor: Colors.transparent,
+                  highlightColor: Colors.transparent,
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const MyPatientsDataWidget(),
+                      ),
+                    );
+                  },
+                  child: const Icon(
+                    Icons.cloud_download,
+                    color: Color(0xFF6050F6), // Adjust color to match theme
+                    size: 64,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Download Data',
+                  style: TextStyle(
+                    fontFamily: 'Inter',
+                    fontSize: 16,
+                    letterSpacing: 0.0,
+                    color: Colors.black54,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

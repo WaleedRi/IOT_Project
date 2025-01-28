@@ -110,7 +110,7 @@ class _TestHistoryWidgetState extends State<TestHistoryWidget> {
             Timestamp? timestamp = snapshot['timestamp'+(i+1).toString()];
             if (timestamp != null) {
               DateTime date = timestamp.toDate();
-              timestamps.add('${date.day}/${date.month}/${date.year}');
+              timestamps.add('${date.day}/${date.month}/${date.year} ' + ' ${date.hour}:${date.minute}:${date.second}');
               print('Document written at: $date');
             } else {
               print('No timestamp available');

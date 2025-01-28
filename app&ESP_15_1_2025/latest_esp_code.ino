@@ -1,4 +1,6 @@
 #include <WiFi.h>
+#include <WiFiUdp.h>
+#include <NTPClient.h>
 //#include <ESPAsyncWebServer.h>
 #include <ESPmDNS.h>
 #include <WebServer.h>
@@ -116,6 +118,9 @@ String patientId = "";
 String testName = "";
 String testLevel = "";
 
+// NTP client setup
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP, "pool.ntp.org", 0, 60000);  // Sync every 60 seconds
 
 // Firebase credentials
 const char* firebaseHost = "https://firestore.googleapis.com/v1/projects/rehapp-friend-mz7n9x/databases/(default)/documents";
@@ -145,14 +150,14 @@ struct DefaultWiFi{
 
 // List of correct words
 const char* foodWords[] = {
-  "apple", "banana", "carrot", "orange", "tomato", "grapes", "cherry", "peach", "lemon", "mango"
+  "apple", "banana", "carrot", "dog", "tomato", "sun", "cherry", "pen", "lemon", "mango"
 };
 
 const char* numbersWords[] = {
-  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"
+  "zero", "fourteen", "eleven", "fifteen", "thirteen", "five", "six", "twelve", "eight", "nine"
 };
 const char* complexWords[] = {
-  "table", "curtain", "extension", "window", "television", "computer", "keyboard", "rehabilitation", "health", "officer"
+  "candle", "curtain", "extension", "button", "television", "computer", "keyboard", "rehabilitation", "whistle", "officer"
 };
 
 #define NUM_WORDS (sizeof(foodWords) / sizeof(foodWords[0]))
@@ -218,7 +223,8 @@ bool loadDefaultWiFi() {
       tft.fillScreen(TFT_WHITE);
       tft.setTextColor(TFT_BLACK, TFT_WHITE);
       tft.setTextSize(2);
-      tft.drawCentreString("Connecting to " + ssid, centerX, centerY, FONT_SIZE); 
+      tft.drawCentreString("Connecting to", centerX, centerY, FONT_SIZE); 
+      tft.drawCentreString(ssid, centerX, centerY + 30, FONT_SIZE);
       ConnectToWIFI();
       delay(1000);
       tft.fillScreen(TFT_WHITE);
@@ -226,6 +232,7 @@ bool loadDefaultWiFi() {
       tft.setTextSize(2);
       Serial.print("Connected to Wifi");
       if (WiFi.status() == WL_CONNECTED) {
+        initializeTimeClient();
         tft.fillScreen(TFT_WHITE);
         tft.setTextColor(TFT_BLACK, TFT_WHITE);
         tft.setTextSize(2);
@@ -235,7 +242,8 @@ bool loadDefaultWiFi() {
         tft.fillScreen(TFT_WHITE);
         tft.setTextColor(TFT_BLACK, TFT_WHITE);
         tft.setTextSize(2);
-        tft.drawCentreString("Connected to " + ssid, centerX, centerY, FONT_SIZE); 
+        tft.drawCentreString("Connected to", centerX, centerY, FONT_SIZE); 
+        tft.drawCentreString(ssid, centerX, centerY + 30, FONT_SIZE);
         return true;
       }
     }
@@ -406,7 +414,7 @@ void displayWordQuestion(WordQuestion q) {
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE);
   tft.setTextSize(3);
-  tft.setCursor(70, 80);
+  tft.setCursor(30, 80);
   tft.print(q.displayedWord);
   drawButtons();
 }
@@ -600,46 +608,30 @@ void activateRandomRing(int testCount) {
 // Function to check if the correct button is pressed
 int checkButtonPress(int testCount, int timer) {
   unsigned long startTime = millis();
+  unsigned long wrongPressTime = 0;
   while(gameActive && (millis() - startTime < timer)){
-    // tft.setTextColor(TFT_RED, TFT_BLACK);
-    // tft.setCursor(20, 30);
-    // tft.setTextSize(2);
-    // float timeLeft = (timer - millis() + startTime)/1000.0;
-    // tft.printf("Countdown: %02f sec  ", timeLeft);
     printCountdown(timer, startTime);
-    //tft.drawCentreString("Time Remaining: " + String(timer - millis() + startTime), centerX + 20, 30, FONT_SIZE); 
+    if (wrongPressTime && (millis() - wrongPressTime > 400)){
+      displayMessage("Press the Button!", activeButton + 1, testCount);
+      wrongPressTime = 0;
+    }
     for (int i = 0; i < NUMPIXELS; i++) {
       if (digitalRead(buttons_pins[i]) == LOW) {
         if (i == activeButton && gameActive) {
-          // reactionTime = millis() - lightUpTime;
-          // reactionTimes[testCount - 1] = reactionTime;
-          
           strip.clear();
           strip.show();
           gameActive = false;
-
-          // char resultMsg[30];
-          // sprintf(resultMsg, "Reaction: %d ms", reactionTime);
-          // displayMessage(resultMsg, -1, testCount);
-
-          //displayMessage("Correct button pressed!", -1, testCount);
           tft.setTextColor(TFT_GREEN, TFT_BLACK);
           tft.drawCentreString("Correct button pressed!", centerX, centerY, FONT_SIZE); 
           delay(1000);
-          // if (testCount < 10) {
-          //   activateRandomRing();
-          // } else {
-          //   showResults();
-          // }
           return 1;
         } else {
           displayMessage("Wrong button!", -1, testCount);
+          wrongPressTime = millis();
         }
       }
     }
   }
-  // testCount++;
-  // return testCount;
   strip.clear();
   strip.show();
   displayMessage("Out of Time!", -1, testCount);
@@ -662,8 +654,6 @@ void showResults(int testCount, int* reactionTimes) {
   }
 
   delay(5000);
-  //testCount = 0;
-  //activateRandomRing();
 }
 
 // Function to display current score on touchscreen
@@ -710,17 +700,17 @@ void displayNumberSelectionScreen() {
 
   // Draw button 1
   tft.fillRect(BUTTON1_X, BUTTON1_Y, BUTTON_WIDTH, BUTTON_HEIGHT, TFT_BLUE);
-  tft.setCursor(BUTTON1_X + 25, BUTTON1_Y + 15);
+  tft.setCursor(BUTTON1_X + (BUTTON_WIDTH/2), BUTTON1_Y + 15);
   tft.print("1");
 
   // Draw button 2
   tft.fillRect(BUTTON2_X, BUTTON2_Y, BUTTON_WIDTH, BUTTON_HEIGHT, TFT_BLUE);
-  tft.setCursor(BUTTON2_X + 25, BUTTON2_Y + 15);
+  tft.setCursor(BUTTON2_X + (BUTTON_WIDTH/2), BUTTON2_Y + 15);
   tft.print("2");
 
   // Draw button 3
   tft.fillRect(BUTTON3_X, BUTTON3_Y, BUTTON_WIDTH, BUTTON_HEIGHT, TFT_BLUE);
-  tft.setCursor(BUTTON3_X + 25, BUTTON3_Y + 15);
+  tft.setCursor(BUTTON3_X + (BUTTON_WIDTH/2), BUTTON3_Y + 15);
   tft.print("3");
 
   // Instruction text
@@ -730,6 +720,9 @@ void displayNumberSelectionScreen() {
 
 // Function to detect which number button is pressed and return the value
 int getSelectedNumber() {
+  while(!(touchscreen.tirqTouched() && touchscreen.touched())){
+    Serial.print("Waiting for answer...");
+  }
   while (true) {
     TS_Point p = touchscreen.getPoint();
     int touchX = p.x;
@@ -763,12 +756,41 @@ int getSelectedNumber() {
       // Check if touch falls within button 3 bounds
       // if (touchX >= BUTTON3_X && touchX <= (BUTTON3_X + BUTTON_WIDTH) && 
       //     touchY >= BUTTON3_Y && touchY <= (BUTTON3_Y + BUTTON_HEIGHT)) {
-      if (isButtonPressed(touchX, touchY, BUTTON2_X, BUTTON2_Y, BUTTON_WIDTH, BUTTON_HEIGHT)){   
+      if (isButtonPressed(touchX, touchY, BUTTON3_X, BUTTON3_Y, BUTTON_WIDTH, BUTTON_HEIGHT)){   
         return 3;
       }
   }
 }
 
+bool initializeTimeClient(){
+  int attempts = 0;
+  if (WiFi.status() == WL_CONNECTED) {
+    timeClient.begin();
+    Serial.print("\nSyncing time");
+    while (!timeClient.update() && attempts < 20) {
+      Serial.print(".");
+      delay(500);
+      attempts++;
+    }
+    setTime(timeClient.getEpochTime());
+    Serial.println("\nTime synchronized successfully!");
+    return true;
+  }else{
+    Serial.println("\nFailed to connect to Wi-Fi. Time not synced");
+    tft.fillScreen(TFT_WHITE);
+    tft.setTextColor(TFT_BLACK, TFT_WHITE);
+    tft.setTextSize(2);
+    tft.drawCentreString("connecting to WiFi Failed", centerX, centerY, FONT_SIZE); 
+    return false;
+  }
+}
+
+String getCurrTime(){
+    // Ensure the NTP client has updated the time
+  char timestamp[25];
+  sprintf(timestamp, "%04d-%02d-%02dT%02d:%02d:%02dZ", year(), month(), day(), hour(), minute(), second());
+  return String(timestamp);
+}
 
 void shuffleArray(int arr[], int n) {
     srand(time(NULL));
@@ -940,16 +962,12 @@ void addTestField(String patientId, String testName, String newTestName, String 
   HTTPClient http;
   String newtimestamp = "timestamp" + String(newTestNumber);
   String url = String(firebaseHost) + "/patients/" + patientId + "/results/" + testName +
-               "?updateMask.fieldPaths=" + newTestName + "?updateMask.fieldPaths=" + newtimestamp + "&updateMask.fieldPaths=tests_numbers" + "&access_token=" + idToken;
+               "?updateMask.fieldPaths=" + newTestName + "&updateMask.fieldPaths=" + newtimestamp + "&updateMask.fieldPaths=tests_numbers" + "&access_token=" + idToken;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
 
   // Get current timestamp in ISO 8601 format
-  char timestamp[25];
-  snprintf(timestamp, sizeof(timestamp), "%04d-%02d-%02dT%02d:%02d:%02dZ",
-           year(), month(), day(), hour(), minute(), second());
-
-  
+  String timestamp = getCurrTime();
 
   // Create JSON payload for Firestore
   StaticJsonDocument<300> doc;
@@ -1054,31 +1072,31 @@ int PlayTheGameAndCalcResults(int timer){
   unsigned long startTime = millis();
   while (currentStep < NUMPIXELS && !gameFailed) {
     printCountdown(timer, startTime);
-    if (millis() - startTime < timer){
+    if (millis() - startTime > timer){
       gameFailed = true;
       break;
     }
     printStringPartOfScreen("Round Score: " + String(currentStep), 150, 20, FONT_SIZE, TFT_WHITE);
-      for (int i = 0; i < NUMPIXELS; i++) {
-          if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
-              userSequence[currentStep] = i;
-              if (userSequence[currentStep] != currentStep) {
-                  gameFailed = true;
-                  break;
-              }
-              currentStep++;
-              delay(250); // Debounce delay
-              for (int j = 0; j < 16; j++) {
-                strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
-              }
-              strip.show();
-              delay(250);
-              for (int j = 0; j < 16; j++) {
-                  strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
-              }
-              strip.show();     
-          }
-      }
+    for (int i = 0; i < NUMPIXELS; i++) {
+        if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
+            userSequence[currentStep] = i;
+            if (userSequence[currentStep] != currentStep) {
+                gameFailed = true;
+                break;
+            }
+            currentStep++;
+            delay(250); // Debounce delay
+            for (int j = 0; j < 16; j++) {
+              strip.setPixelColor(16*randomized_buttons[i]+j, 0x000000);
+            }
+            strip.show();
+            delay(250);
+            for (int j = 0; j < 16; j++) {
+                strip.setPixelColor(16*randomized_buttons[i]+j, colors[randomized_buttons[i]]); 
+            }
+            strip.show();     
+        }
+    }
   }
   tft.fillScreen(TFT_BLACK);
   tft.setTextColor(TFT_WHITE, TFT_BLACK);
@@ -1536,7 +1554,7 @@ void setup() {
           ssid = server.arg("ssid");
           password = server.arg("password");
           server.send(200, "text/plain", "Wi-Fi credentials received. Rebooting...");
-
+          
           // Disconnect AP and connect to Wi-Fi
           WiFi.softAPdisconnect(true);
           tft.setTextColor(TFT_BLACK, TFT_WHITE);
@@ -1556,6 +1574,7 @@ void setup() {
               tft.drawCentreString("Recovering Data...", centerX, centerY, FONT_SIZE); 
               loadStruct();
 
+              initializeTimeClient();
               // Start mDNS
               if (!MDNS.begin("esp32")) {
                   Serial.println("Error starting mDNS");
@@ -1564,7 +1583,8 @@ void setup() {
                   tft.fillScreen(TFT_WHITE);
                   tft.setTextColor(TFT_BLACK, TFT_WHITE);
                   tft.setTextSize(2);
-                  tft.drawCentreString("Connected to " + ssid, centerX, centerY, FONT_SIZE); 
+                  tft.drawCentreString("Connected to", centerX, centerY, FONT_SIZE); 
+                  tft.drawCentreString(ssid, centerX, centerY + 30, FONT_SIZE);
               }
           } else {
               Serial.println("\nFailed to connect to Wi-Fi.");
@@ -1592,6 +1612,7 @@ void setup() {
       }else{
         server.send(400, "text/plain", "Missing parameters.");
       } 
+      initializeTimeClient();
       WiFi.disconnect(true);
       setAllPixelsColor(0x000000);
       strip.show();

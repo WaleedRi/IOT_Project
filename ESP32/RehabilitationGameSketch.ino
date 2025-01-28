@@ -1065,6 +1065,7 @@ int PlayTheGameAndCalcResults(int timer){
   int currentStep = 0;
   bool gameFailed = false;
   unsigned long startTime = millis();
+  int lastPress = 100;
   while (currentStep < NUMPIXELS && !gameFailed) {
     printCountdown(timer, startTime);
     if (millis() - startTime > timer){
@@ -1073,7 +1074,8 @@ int PlayTheGameAndCalcResults(int timer){
     }
     printStringPartOfScreen("Round Score: " + String(currentStep), 150, 20, FONT_SIZE, TFT_WHITE);
     for (int i = 0; i < NUMPIXELS; i++) {
-        if (digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) {
+        if ((digitalRead(buttons_pins[randomized_buttons[i]]) == LOW) && (lastPress != i)) {
+            lastPress = i;
             userSequence[currentStep] = i;
             if (userSequence[currentStep] != currentStep) {
                 gameFailed = true;

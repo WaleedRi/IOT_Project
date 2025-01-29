@@ -1,3 +1,7 @@
+
+## Cables Connection Sketch
+[Screenshot](Documentation/cables_connection.png "Cables Connection")
+
 ## Pin Connections
 
 | TouchScreen Pin    | ESP Pin               |
@@ -16,4 +20,27 @@
 | CS             | 	GPIO 15  |
 | GND            | 	GND      |
 | VCC            | 	5V       |
+
+| Buttons Pin   | ESP Pin                    |
+|---------------|----------------------------|
+| Button 1          | 	GPIO 5   |
+| Button 2          | 	GPIO 18  |
+| Button 3          | 	GPIO 19  |
+| Button 4          | 	GPIO 22  |
+| Button 5          | 	GPIO 23  |
+
+| RGB Rings Pin    | ESP Pin                   |
+|------------------|---------------------------|
+| DIN              | 	GPIO 4   |
+| VCC              |  5V       |
+| GND              |  GND      |
+
+| MP3 Player Board Pin    | ESP Pin       |
+|-------------------------|---------------|
+| VCC          | 	GPIO 5   |
+| GND          | 	GPIO 18  |
+| RX           |  RX2      |
+| TX           |  TX2      |
+
+
 

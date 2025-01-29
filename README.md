@@ -5,11 +5,24 @@ patient's senses and cognitive ability. For example, we have tests that include 
 includes an application by the name of Rehapp Friend which is used by the doctors of these patients in order to use the device. The application also provides the
 doctors with many different graphs and statistics to help them monitor their patients' progress easily and efficiently.  
 
+## Repo Folders Description
+
 ## Project Details
 
 ### Physical Device
 
 ### Android Application
+
+## Libraries Used by App
+
+## Arduino Libraries Used by ESP
+
+- NTPClient by Fabrice Weinberg - version 3.2.1
+- Adafruit Neopixel by Adafruit - version 1.12.3
+- ArduinoJson by Benoit Blanchon - version 7.3.0
+- TFT_eSPI by Bodmer - version 2.5.34
+- Time by Michael Margolis - verion 1.6.1
+- XPT2046_Touchscreen by Paul Stoffregen - version 1.4
 
 ## Cables Connection Sketch
 [ESP_cables_connection](Documentation/ESP_cables_connection.jpg "Cables Connection")

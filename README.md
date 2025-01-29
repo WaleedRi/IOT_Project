@@ -1,6 +1,7 @@
 
 ## Cables Connection Sketch
 [Alt Text](Documentation/ESP_cables_connection.jpg "Cables Connection")
+[Alt Text](https://github.com/WaleedRi/IOT_Project/blob/main/Documentation/ESP_cables_connection.jpg)
 
 ## Pin Connections
 

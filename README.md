@@ -19,7 +19,7 @@
 | RESET          | 	EN/RESET |
 | CS             | 	GPIO 15  |
 | GND            | 	GND      |
-| VCC            | 	5V       |
+| VCC            | 	3.3V     |
 
 | Buttons Pin   | ESP Pin                    |
 |---------------|----------------------------|
@@ -37,8 +37,8 @@
 
 | MP3 Player Board Pin    | ESP Pin       |
 |-------------------------|---------------|
-| VCC          | 	GPIO 5   |
-| GND          | 	GPIO 18  |
+| VCC          | 	5V       |
+| GND          | 	GND      |
 | RX           |  RX2      |
 | TX           |  TX2      |
 

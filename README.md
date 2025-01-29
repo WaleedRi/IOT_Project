@@ -1,6 +1,6 @@
 
 ## Cables Connection Sketch
-[Screenshot](Documentation/ESP_cables_connection.jpg "Cables Connection")
+[Alt Text](Documentation/ESP_cables_connection.jpg "Cables Connection")
 
 ## Pin Connections
 

@@ -610,10 +610,10 @@ int checkButtonPress(int testCount, int timer) {
   unsigned long wrongPressTime = 0;
   while(gameActive && (millis() - startTime < timer)){
     printCountdown(timer, startTime);
-    if (wrongPressTime && (millis() - wrongPressTime > 400)){
-      displayMessage("Press the Button!", activeButton + 1, testCount);
-      wrongPressTime = 0;
-    }
+    // if (wrongPressTime && (millis() - wrongPressTime > 400)){
+    //   displayMessage("Press the Button!", activeButton + 1, testCount);
+    //   wrongPressTime = 0;
+    // }
     for (int i = 0; i < NUMPIXELS; i++) {
       if (digitalRead(buttons_pins[i]) == LOW) {
         if (i == activeButton && gameActive) {
@@ -626,7 +626,11 @@ int checkButtonPress(int testCount, int timer) {
           return 1;
         } else {
           displayMessage("Wrong button!", -1, testCount);
-          wrongPressTime = millis();
+          strip.clear();
+          strip.show();
+          delay(1000);
+          return 0;
+          // wrongPressTime = millis();
         }
       }
     }
@@ -1620,6 +1624,8 @@ void setup() {
       }else{
         server.send(400, "text/plain", "Missing parameters.");
       } 
+      strip.clear();
+      strip.show();
       printStringtoScreen("Starting " + testName + " Test", centerX, centerY, FONT_SIZE);
       initializeTimeClient();
       WiFi.disconnect(true);

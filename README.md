@@ -1,4 +1,16 @@
 
+## Rehabilitation Game by: Waleed Rinawi, Thaer Abu Tayeh, and Yaser Hegazi
+Our project is an IOT device that is used to run various different tests on patients undergoing rehabilitation. These tests cover many different aspects of the
+patient's senses and cognitive ability. For example, we have tests that include the use of auditory and visual interactions with the patients. The project also
+includes an application by the name of Rehapp Friend which is used by the doctors of these patients in order to use the device. The application also provides the
+doctors with many different graphs and statistics to help them monitor their patients' progress easily and efficiently.  
+
+## Project Details
+
+#### Physical Device
+
+#### Android Application
+
 ## Cables Connection Sketch
 [ESP_cables_connection](Documentation/ESP_cables_connection.jpg "Cables Connection")
 

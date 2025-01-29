@@ -7,9 +7,9 @@ doctors with many different graphs and statistics to help them monitor their pat
 
 ## Project Details
 
-#### Physical Device
+### Physical Device
 
-#### Android Application
+### Android Application
 
 ## Cables Connection Sketch
 [ESP_cables_connection](Documentation/ESP_cables_connection.jpg "Cables Connection")

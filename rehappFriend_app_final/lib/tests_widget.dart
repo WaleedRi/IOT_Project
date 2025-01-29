@@ -6,6 +6,9 @@ import 'test_statistics.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';  // Add connectivity package
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'patients_progress_widget.dart';
+import 'package:multicast_dns/multicast_dns.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 
 class TestsWidget extends StatefulWidget {
   const TestsWidget({Key? key}) : super(key: key);
@@ -55,7 +58,57 @@ class _TestsWidgetWidgetState extends State<TestsWidget> {
     await LastTestDate();
   }
 
-  void startTest(String patientId, String testName,String testLevel) async {
+  Future<void> _resolveESP32() async {
+    print("Resolving IP...");
+    setState(() {
+      isLoading = true; // Start loading
+    });
+
+    try {
+      bool isConnected = await checkInternetConnection();
+      if (!isConnected) {
+        _showNoWiFiDialog();
+        return;
+      }
+
+      final String hostname = 'esp32.local';
+      final MDnsClient client = MDnsClient();
+
+      await Future.any([
+        client.start(),
+        Future.delayed(Duration(seconds: 5)) // Timeout for starting client
+      ]);
+
+      final List<IPAddressResourceRecord> addresses = await Future.any([
+        client.lookup<IPAddressResourceRecord>(
+          ResourceRecordQuery.addressIPv4(hostname),
+        ).toList(),
+        Future.delayed(Duration(seconds: 10), () => []) // Timeout for lookup
+      ]);
+
+      if (addresses.isNotEmpty) {
+        String ip = addresses.first.address.address;
+        print("Resolved IP: $ip");
+        ESPIP = ip;
+      } else {
+        ScaffoldMessenger.of( context).showSnackBar(
+          SnackBar(content: Text('no ESP found!')),
+        );
+        print("No IP found within 10 seconds.");
+      }
+
+      client.stop();
+    } catch (e) {
+      print('Error: $e');
+    } finally {
+      setState(() {
+        isLoading = false; // Stop loading
+      });
+    }
+  }
+
+
+  void startTest(String patientId, String testName, String testLevel) async {
     setState(() {
       isLoading = true; // Show loading animation
     });
@@ -65,16 +118,33 @@ class _TestsWidgetWidgetState extends State<TestsWidget> {
         _showNoWiFiDialog();
         return;
       }
-      final response = await http.post(Uri.parse('http://$ESPIP/start'),
-        body: {'patientId': patientId, 'testName': testName, 'testLevel': testLevel},);
+
+      await _resolveESP32(); // Your function call
+
+      // Timeout HTTP request after 10 seconds
+      final response = await Future.any([
+        http.post(
+          Uri.parse('http://$ESPIP/start'),
+          body: {'patientId': patientId, 'testName': testName, 'testLevel': testLevel},
+        ),
+        Future.delayed(const Duration(seconds: 10), () => throw Future.error("TimeoutException")),
+      ]);
+
       if (response.statusCode == 200) {
         print('Test started successfully: ${response.body}');
       } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('ESP lost connection to the wifi!')),
+        );
         print('Failed to start the test');
       }
     } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ESP lost connection to the wifi!')),
+      );
+
       print('Error: $e');
-    }finally {
+    } finally {
       setState(() {
         isLoading = false; // Hide loading animation
       });

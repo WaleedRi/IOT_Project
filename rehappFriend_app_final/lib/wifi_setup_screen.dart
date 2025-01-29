@@ -54,13 +54,13 @@ class _WiFiSetupScreenState extends State<WiFiSetupScreen> {
         );
        // navigateToTestsWidget(ip);
         // Wait a few seconds for ESP32 to connect to the new network
-       // await Future.delayed(Duration(seconds: 40));
+        await Future.delayed(Duration(seconds: 40));
         setState(() {
           _ipAddress= "connect to your wifi, then press below button";
         });
 
         // Discover ESP32 on the network using mDNS
-       // _resolveESP32();
+        _resolveESP32();
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to send Wi-Fi credentials.')),
@@ -216,10 +216,10 @@ class _WiFiSetupScreenState extends State<WiFiSetupScreen> {
             if (!_isLoading)
 
           //  SizedBox(height: 20),
-            ElevatedButton(
+      /*      ElevatedButton(
               onPressed: _resolveESP32,
               child: Text('Connect to ESP32'),
-            ),
+            ),*/
             Text(
               _ipAddress,
               textAlign: TextAlign.center,

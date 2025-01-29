@@ -395,7 +395,7 @@ class _MyPatientsDataWidgetState extends State<MyPatientsDataWidget> {
       // Define the directory based on SDK version
       String directoryPath = sdkVersion >= 30
           ? '/storage/emulated/0/Download'
-          : '/storage/emulated/0/Documents';
+          : '/storage/emulated/0/Document';
       final directory = Directory(directoryPath);
       if (!await directory.exists()) {
         await directory.create(recursive: true);

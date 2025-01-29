@@ -228,13 +228,13 @@ class _SingleTestResultWidgetState extends State<SingleTestResultWidget> {
                   letterSpacing: 0.0,
                 ),
               ),
-              Text(
+            /*  Text(
                 date,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                   color: Theme.of(context).hintColor,
                   letterSpacing: 0.0,
                 ),
-              ),
+              ),*/
             ],
           ),
           Row(

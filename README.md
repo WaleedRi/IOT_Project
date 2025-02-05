@@ -36,6 +36,7 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 - **Data Export**: CSV generation interface
 
 ### Test Descriptions:
+Each test has 3 rounds, each round's score is translated into 5 points. The results are saved under the Patient's results.
 
 #### 1. Auditory Memory Test
 - **Purpose**: Evaluate auditory memory capacity

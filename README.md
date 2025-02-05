@@ -11,10 +11,10 @@ doctors with many different graphs and statistics to help them monitor their pat
 
 ### Physical Device
 
-### Android Application
+## Android Application
 The core idea of Rehapp Friend is to leverage IoT technology and a mobile application to enhance the rehabilitation process by providing comprehensive and real-time data to healthcare professionals, thereby improving patient outcomes and treatment efficiency.
 
-## Main Pages
+### Main Pages
 
 ### 1. Authentication Pages
 - **Login Screen**: Email/password authentication
@@ -37,7 +37,7 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 - **Data Export**: CSV generation interface
 - **Settings**: App configuration
 
-## Test Descriptions
+### Test Descriptions
 
 ### 1. Auditory Memory Test
 - **Purpose**: Evaluate auditory memory capacity
@@ -69,7 +69,7 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 - **Hardware**: ESP32 with LED indicators
 - **Metrics**: Response time in milliseconds
 
-## Technical Features
+### Technical Features
 
 ### Data Export
 - Individual test results
@@ -94,7 +94,7 @@ Workmanager
 
 
 
-## Arduino Libraries Used by ESP
+### Arduino Libraries Used by ESP
 
 - NTPClient by Fabrice Weinberg - version 3.2.1
 - Adafruit Neopixel by Adafruit - version 1.12.3

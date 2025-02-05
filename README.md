@@ -83,13 +83,13 @@ Each test has 3 rounds, each round's score is translated into 5 points. The resu
 - Response time measurement
 
 #### Libraries Used By The App
-Flutter
-Firebase Core
-Firebase Auth
-Cloud Firestore
-Connectivity Plus
-Flutter Local Notifications
-Workmanager
+- Flutter
+- Firebase Core
+- Firebase Auth
+- Cloud Firestore
+- Connectivity Plus
+- Flutter Local Notifications
+- Workmanager
 
 
 

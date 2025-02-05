@@ -1,7 +1,7 @@
 Parameters found at the top of the ESP code: 
-- 
-- 
-- 
-- 
-- 
-- 
+- *ap_ssid : Name of ESP accesspoint 
+- *ap_password : Password to ESP accesspoint
+- colors[] : Array containing 5 colors used in the tests
+- foodWords[] : Words used for first roud of reading test
+- numbersWords[] : Words used for second roud of reading test
+- complexWords[] : Words used for third roud of reading test

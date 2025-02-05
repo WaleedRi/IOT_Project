@@ -16,26 +16,24 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 
 ### Main Pages:
 
-### 1. Authentication Pages
+#### 1. Authentication Pages
 - **Login Screen**: Email/password authentication
 - **Registration Screen**: Doctor registration with ID verification
-- **Password Reset**: Recovery functionality
 
-### 2. Patient Management
+#### 2. Patient Management
 - **Patient List**: Overview of all patients
 - **Patient Profile**: Detailed patient information
 - **Add/Edit Patient**: Patient information management
 
-### 3. Test Suite Pages
+#### 3. Test Pages
 - **Test Selection Dashboard**: Overview of available tests
 - **Test Execution Screens**: Individual test interfaces
 - **Results View**: Immediate post-test results
 - **Progress Tracking**: Historical performance charts
 
-### 4. Administrative Pages
+#### 4. Administrative Pages
 - **WiFi Setup**: ESP32 device configuration
 - **Data Export**: CSV generation interface
-- **Settings**: App configuration
 
 ### Test Descriptions:
 

@@ -37,31 +37,31 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 
 ### Test Descriptions:
 
-### 1. Auditory Memory Test
+#### 1. Auditory Memory Test
 - **Purpose**: Evaluate auditory memory capacity
 - **Method**: Play sequence of sounds for memorization
 - **Scoring**: Based on correct sequence recall
 - **Attempts**: 3 tries per session
 
-### 2. Visual Memory Test
+#### 2. Visual Memory Test
 - **Purpose**: Assess visual pattern recognition
 - **Method**: Show sequence of patterns/colors
 - **Scoring**: Accuracy in pattern reproduction
 - **Difficulty Levels**: Progressive complexity
 
-### 3. Reading Test
+#### 3. Reading Test
 - **Purpose**: Evaluate reading comprehension
 - **Method**: Timed text reading with comprehension questions
 - **Metrics**: Speed and accuracy tracking
 - **Customization**: Multiple difficulty levels
 
-### 4. Basic Math Test
+#### 4. Basic Math Test
 - **Purpose**: Cognitive arithmetic abilities
 - **Method**: Timed arithmetic problems
 - **Operations**: Addition, subtraction, multiplication
 - **Difficulty**: Adjustable complexity
 
-### 5. Reflex Test (ESP32 Integration)
+#### 5. Reflex Test (ESP32 Integration)
 - **Purpose**: Measure reaction time
 - **Method**: LED stimulus response measurement
 - **Hardware**: ESP32 with LED indicators
@@ -69,19 +69,19 @@ The core idea of Rehapp Friend is to leverage IoT technology and a mobile applic
 
 ### Technical Features:
 
-### Data Export
+#### Data Export
 - Individual test results
 - Progress trends
 - Comprehensive patient reports
 - CSV format export
 
-### ESP32 Integration
+#### ESP32 Integration
 - Wireless connection setup
 - Real-time data collection
 - Test execution control
 - Response time measurement
 
-### Libraries Used By The App
+#### Libraries Used By The App
 Flutter
 Firebase Core
 Firebase Auth
@@ -92,7 +92,7 @@ Workmanager
 
 
 
-### Arduino Libraries Used by ESP
+## Arduino Libraries Used by ESP
 
 - NTPClient by Fabrice Weinberg - version 3.2.1
 - Adafruit Neopixel by Adafruit - version 1.12.3

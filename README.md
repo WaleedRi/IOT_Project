@@ -11,17 +11,16 @@ doctors with many different graphs and statistics to help them monitor their pat
 - Parameters: Holds parameter files relevant to the project.
 - rehappFriend_app_final: Contains the final version of the Rehapp Friend application.
 - unit_tests: Includes unit tests for various components of the project.
+- Assets: Files and resources we used in the project.
 
-##Project Details
+## Project Details
 We seamlessly integrated hardware and software to create a comprehensive rehabilitation monitoring system. The Rehapp Friend app, in conjunction with the ESP32 microcontroller, allows doctors to efficiently manage their patients' rehabilitation progress.
 
-###Data Management
+### Data Management
 After a patient completes a test, the results are automatically saved to Firebase. These results are then loaded by the Rehapp Friend application, where doctors can view and analyze the data using various charts and graphs. This feature allows doctors to track progress over time and make informed decisions about their patients' rehabilitation plans.
 
 This comprehensive system provides an efficient and user-friendly way for doctors to monitor and enhance their patients' rehabilitation journey.
 
-
-### Physical Device
 
 ## Android Application
 The core idea of Rehapp Friend is to leverage IoT technology and a mobile application to enhance the rehabilitation process by providing comprehensive and real-time data to healthcare professionals, thereby improving patient outcomes and treatment efficiency.

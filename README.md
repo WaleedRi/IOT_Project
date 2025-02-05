@@ -12,8 +12,87 @@ doctors with many different graphs and statistics to help them monitor their pat
 ### Physical Device
 
 ### Android Application
+The core idea of Rehapp Friend is to leverage IoT technology and a mobile application to enhance the rehabilitation process by providing comprehensive and real-time data to healthcare professionals, thereby improving patient outcomes and treatment efficiency.
 
-## Libraries Used by App
+## Main Pages
+
+### 1. Authentication Pages
+- **Login Screen**: Email/password authentication
+- **Registration Screen**: Doctor registration with ID verification
+- **Password Reset**: Recovery functionality
+
+### 2. Patient Management
+- **Patient List**: Overview of all patients
+- **Patient Profile**: Detailed patient information
+- **Add/Edit Patient**: Patient information management
+
+### 3. Test Suite Pages
+- **Test Selection Dashboard**: Overview of available tests
+- **Test Execution Screens**: Individual test interfaces
+- **Results View**: Immediate post-test results
+- **Progress Tracking**: Historical performance charts
+
+### 4. Administrative Pages
+- **WiFi Setup**: ESP32 device configuration
+- **Data Export**: CSV generation interface
+- **Settings**: App configuration
+
+## Test Descriptions
+
+### 1. Auditory Memory Test
+- **Purpose**: Evaluate auditory memory capacity
+- **Method**: Play sequence of sounds for memorization
+- **Scoring**: Based on correct sequence recall
+- **Attempts**: 3 tries per session
+
+### 2. Visual Memory Test
+- **Purpose**: Assess visual pattern recognition
+- **Method**: Show sequence of patterns/colors
+- **Scoring**: Accuracy in pattern reproduction
+- **Difficulty Levels**: Progressive complexity
+
+### 3. Reading Test
+- **Purpose**: Evaluate reading comprehension
+- **Method**: Timed text reading with comprehension questions
+- **Metrics**: Speed and accuracy tracking
+- **Customization**: Multiple difficulty levels
+
+### 4. Basic Math Test
+- **Purpose**: Cognitive arithmetic abilities
+- **Method**: Timed arithmetic problems
+- **Operations**: Addition, subtraction, multiplication
+- **Difficulty**: Adjustable complexity
+
+### 5. Reflex Test (ESP32 Integration)
+- **Purpose**: Measure reaction time
+- **Method**: LED stimulus response measurement
+- **Hardware**: ESP32 with LED indicators
+- **Metrics**: Response time in milliseconds
+
+## Technical Features
+
+### Data Export
+- Individual test results
+- Progress trends
+- Comprehensive patient reports
+- CSV format export
+
+### ESP32 Integration
+- Wireless connection setup
+- Real-time data collection
+- Test execution control
+- Response time measurement
+
+### Libraries Used By The App
+Flutter
+Firebase Core
+Firebase Auth
+Cloud Firestore
+Connectivity Plus
+Flutter Local Notifications
+Workmanager
+
+
 
 ## Arduino Libraries Used by ESP
 

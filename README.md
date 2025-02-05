@@ -8,7 +8,11 @@ doctors with many different graphs and statistics to help them monitor their pat
 ## Repo Folders Description
 
 ## Project Details
-
+- Documentation: Contains documentation related to the project.
+- ESP32: Includes code and resources for the ESP32 microcontroller used in the project.
+- Parameters: Holds parameter files relevant to the project.
+- rehappFriend_app_final: Contains the final version of the Rehapp Friend application.
+- unit_tests: Includes unit tests for various components of the project.
 ### Physical Device
 
 ## Android Application

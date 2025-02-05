@@ -6,13 +6,21 @@ includes an application by the name of Rehapp Friend which is used by the doctor
 doctors with many different graphs and statistics to help them monitor their patients' progress easily and efficiently.  
 
 ## Repo Folders Description
-
-## Project Details
 - Documentation: Contains documentation related to the project.
 - ESP32: Includes code and resources for the ESP32 microcontroller used in the project.
 - Parameters: Holds parameter files relevant to the project.
 - rehappFriend_app_final: Contains the final version of the Rehapp Friend application.
 - unit_tests: Includes unit tests for various components of the project.
+
+##Project Details
+We seamlessly integrated hardware and software to create a comprehensive rehabilitation monitoring system. The Rehapp Friend app, in conjunction with the ESP32 microcontroller, allows doctors to efficiently manage their patients' rehabilitation progress.
+
+###Data Management
+After a patient completes a test, the results are automatically saved to Firebase. These results are then loaded by the Rehapp Friend application, where doctors can view and analyze the data using various charts and graphs. This feature allows doctors to track progress over time and make informed decisions about their patients' rehabilitation plans.
+
+This comprehensive system provides an efficient and user-friendly way for doctors to monitor and enhance their patients' rehabilitation journey.
+
+
 ### Physical Device
 
 ## Android Application
